@@ -83,3 +83,44 @@ they are. Each entry: what we did, the concepts, and anything to remember.
   regression, convert coefficients into integer point scores (industry scorecard format) — Phase 2,
   task 1.
 - Then download **Give Me Some Credit** from Kaggle (`kaggle.json`) and scale up.
+
+---
+
+## Session 3 — 2026-07-16 — Logistic-regression scorecard (Phase 2, task 1)
+
+### What we did
+- Built `notebooks/03_logistic_scorecard.ipynb`: full WoE -> logistic regression -> integer points
+  scorecard on German Credit, with proper train/test discipline and real metrics.
+
+### Concepts learned
+- **A scorecard** is the deployable artifact: points per attribute, summed to a total, mapped to PD.
+  Logistic regression is the engine because it is linear in log-odds and fully interpretable
+  (regulator-friendly). Model: `ln(PD / (1-PD)) = b0 + sum(bi * WoE_i)`.
+- **Data leakage, and how to avoid it:** split into train/test FIRST, then learn WoE maps and numeric
+  bin edges from **train only**, and apply them to test. Computing WoE on the full data before
+  splitting inflates AUC dishonestly. This is the #1 beginner mistake.
+- **Stratified split** (`stratify=y`) preserves the 30% default rate in both halves — matters with
+  imbalance.
+- **Metrics that replace accuracy:** AUC (prob. model ranks a random bad above a random good;
+  0.5 = coin flip), Gini = 2*AUC - 1, KS = max gap between good/bad cumulative score distributions.
+  Our scorecard: **AUC 0.80, Gini 0.61, KS 0.58** on test — above the 0.75 target.
+- **Coefficient signs:** since higher WoE = safer, coefficients came out mostly negative
+  (17/20) — higher WoE lowers PD. A built-in sanity check.
+- **Points formula:** `Factor = pdo/ln(2)`, `Offset = base_score - Factor*ln(base_odds)`,
+  `points_i = (Offset - Factor*intercept)/n - Factor * coef_i * WoE_i`. Higher points = safer. We
+  anchored `base_score=500` at the **portfolio's own good:bad odds (2.33)** with `pdo=40`, rather
+  than the FICO-style "600 at 50:1" (which assumes a ~2% default book and left everyone off-scale).
+  Sanity: `no account` scored 51 pts, `< 0 DM` only 9 — matches risk ordering.
+- **The cutoff is a business lever, not a model output.** At cutoff 480 we approve 65% of applicants
+  with a 13% default rate among approved, while the rejected pool defaults 61%. Raise the cutoff →
+  approve fewer, safer. The model just supplies the score; the lender picks the line.
+
+### Key facts / commands to remember
+- Always split before encoding. Learn WoE/bins on train, `.map(...).fillna(0)` on test (unseen
+  category -> neutral WoE 0).
+- Gini = 2*AUC - 1. Higher score = lower PD (corr was -0.97).
+
+### Next session
+- **Give Me Some Credit** (250k borrowers) from Kaggle: set up `kaggle.json`, download, EDA at scale.
+- Then **XGBoost** — the gradient-boosted model that will beat this scorecard on AUC and become the
+  benchmark deep learning has to beat (Phase 2, tasks 2-3).
