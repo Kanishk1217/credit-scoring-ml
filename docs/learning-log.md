@@ -45,3 +45,41 @@ they are. Each entry: what we did, the concepts, and anything to remember.
 - **Weight of Evidence (WoE)** and **Information Value (IV):** turn default-rate gaps into
   model-ready numbers and rank features by predictive power (Phase 1, task 6).
 - Download **Give Me Some Credit** from Kaggle (need `kaggle.json` token) and rerun EDA at ~250x scale.
+
+---
+
+## Session 2 — 2026-07-16 — Weight of Evidence & Information Value (Phase 1, task 6)
+
+### What we did
+- Graduated the German Credit schema + loading out of notebook 01 into `src/data_loader.py`
+  (`load_german_credit()`), so notebooks share one loader. First use of the "notebook → src/" pattern.
+- Built `notebooks/02_woe_iv.ipynb`: WoE by hand for one feature, then a reusable `woe_iv()`
+  function, then IV ranking of every feature, numeric binning, and the WoE transform.
+
+### Concepts learned
+- **Weight of Evidence (WoE)** converts a category into a single risk number:
+  `WoE = ln(good_share / bad_share)` where good = repaid, bad = defaulted. **Positive = safer than
+  average, negative = riskier, ~0 = uninformative.** WoE moves *opposite* to the default rate.
+  Confirmed: `no account` (12% default) → WoE +1.17; `< 0 DM` (49% default) → WoE -0.82.
+- **Zero-cell problem:** if a category has 0 bads (or 0 goods), the log is infinite. Fixed by adding
+  a small `+0.5` to each count before computing distributions.
+- **Information Value (IV)** = `sum((good_share - bad_share) * WoE)` scores a whole feature.
+  Rule of thumb: <0.02 useless · 0.02-0.1 weak · 0.1-0.3 medium · 0.3-0.5 strong · >0.5 suspicious.
+- **German Credit IV ranking:** checking_status 0.66 (dominant, "suspiciously strong"),
+  credit_history 0.29, savings_status 0.19, purpose 0.17, property 0.11 are the useful ones;
+  job (0.009) and telephone (0.006) are useless. IV *is* feature selection.
+- **Numeric features must be binned first** (e.g. `pd.qcut(col, q=5)` = quantile bins) before WoE.
+  age IV = 0.068, credit_amount IV = 0.093 — both weak-ish alone.
+- **WoE transform** = replace a column's categories with their WoE numbers, producing a model-ready
+  numeric column. This is the direct input to the logistic-regression scorecard.
+
+### Key facts / commands to remember
+- Shared loader: `from src.data_loader import load_german_credit`. Notebooks add repo root to
+  `sys.path` first: `sys.path.insert(0, os.path.abspath(".."))`.
+- Higher WoE = safer. Higher IV = more predictive (but very high IV can signal leakage).
+
+### Next session
+- **Logistic-regression scorecard** on German Credit: WoE-encode all features, fit logistic
+  regression, convert coefficients into integer point scores (industry scorecard format) — Phase 2,
+  task 1.
+- Then download **Give Me Some Credit** from Kaggle (`kaggle.json`) and scale up.
