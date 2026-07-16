@@ -124,3 +124,48 @@ they are. Each entry: what we did, the concepts, and anything to remember.
 - **Give Me Some Credit** (250k borrowers) from Kaggle: set up `kaggle.json`, download, EDA at scale.
 - Then **XGBoost** — the gradient-boosted model that will beat this scorecard on AUC and become the
   benchmark deep learning has to beat (Phase 2, tasks 2-3).
+
+---
+
+## Session 4 — 2026-07-16 — Give Me Some Credit + XGBoost (Phase 2, tasks 2 & 5-part)
+
+### What we did
+- Set up the Kaggle API token (`~/.kaggle/access_token`). Competition download 403'd (rules not
+  accepted), so used the public mirror `brycecf/give-me-some-credit-dataset` instead.
+- Installed `xgboost` + `optuna`. **macOS gotcha:** xgboost needs OpenMP — fixed with
+  `brew install libomp` (LightGBM will need it too, already installed now).
+- Built `notebooks/04_give_me_some_credit_xgboost.ipynb`: EDA + cleaning + XGBoost + LR baseline +
+  Optuna tuning on 150k borrowers.
+
+### Concepts learned
+- **Real messy data vs clean:** 150k rows, 10 features, target `SeriousDlqin2yrs` (90+ days late).
+  **6.7% default rate** — so "predict everyone repays" scores **93.3% accuracy** and is useless. The
+  extreme version of the Phase 1 accuracy-trap lesson.
+- **Missing data:** MonthlyIncome ~20% missing, NumberOfDependents ~2.6%. Added a
+  `MonthlyIncome_missing` flag (missingness itself can be signal).
+- **Data-quality landmines:** age==0 (impossible), sentinel codes 96/98 in the past-due columns
+  (not real counts), and wild ratio outliers (DebtRatio max 329k). Cleaned only the genuine errors
+  (-> NaN); left the outliers alone.
+- **Gradient boosting:** builds trees one at a time, each trained to fix the current ensemble's
+  errors. Captures interactions automatically. Key knobs: n_estimators, learning_rate, max_depth,
+  subsample/colsample_bytree, scale_pos_weight, early_stopping.
+- **XGBoost handles NaN natively** (learns which way to send missing at each split) — so we passed
+  gaps in directly, no imputation. And **trees ignore monotonic outliers** (they split on rank), so
+  huge values don't distort like they would a linear model. Two reasons XGBoost suits messy tabular.
+- **Imbalance fix:** `scale_pos_weight = n_neg / n_pos` (= 13.96 here) up-weights rare defaulters.
+- **3-way split** (train/valid/test, 60/20/20): valid drives early stopping, test stays untouched
+  for the honest final score.
+- **Results:** XGBoost AUC **0.869** vs Logistic Regression **0.820** on the same data — boosting
+  wins by ~0.05 AUC. Top feature: RevolvingUtilizationOfUnsecuredLines.
+- **Optuna** does smart hyperparameter search (optimizing on validation, never test). Lesson: tuning
+  gave only a marginal gain here because sensible defaults were already strong.
+
+### Key facts / commands to remember
+- Kaggle token at `~/.kaggle/access_token`. Download data: `uv run kaggle datasets download -d <ref> -p data/raw --unzip`. Data files are git-ignored.
+- xgboost/lightgbm on this Mac need `brew install libomp` (done).
+- Give Me Some Credit: use `cs-training.csv` only (`cs-test.csv` is unlabeled). 150k rows, 6.7% default.
+- XGBoost early stopping: `early_stopping_rounds` in constructor, `eval_set=[(X_val,y_val)]` in fit.
+
+### Next session
+- **LightGBM + CatBoost** on the same data, head-to-head with XGBoost (AUC/KS/Gini) — Phase 2 task 3.
+- **Probability calibration** (Platt / isotonic): make the output a true PD, not just a good ranking.
