@@ -169,3 +169,39 @@ they are. Each entry: what we did, the concepts, and anything to remember.
 ### Next session
 - **LightGBM + CatBoost** on the same data, head-to-head with XGBoost (AUC/KS/Gini) — Phase 2 task 3.
 - **Probability calibration** (Platt / isotonic): make the output a true PD, not just a good ranking.
+
+---
+
+## Session 5 — 2026-07-17 — Deep-dive review: understanding the XGBoost notebook (teaching-style reset)
+
+Not new material — user said the hand-off style wasn't teaching them. Switched to showing real data
+and output live in chat and explaining code line by line. See [[feedback-credit-scoring-teaching-style]].
+
+### What we actually understood (with real data shown)
+- **Seeing the data:** compared one real repayer vs one real defaulter side by side. Same age (40),
+  but the defaulter earned 5x MORE income — income misled; the giveaway was payment history (defaulter
+  late 3x/1x/3x, repayer never). Lesson: "signal" = the columns where good/bad actually differ.
+- **Cleaning / NaN:** saw the value_counts of a past-due column decline smoothly 0->13 then jump to
+  fake sentinel codes 96 (5x) and 98 (264x). Those aren't counts. `clean()` sets age==0 and the 96/98
+  to `np.nan` (NaN = "honestly unknown", NOT 0 which means "never late"). Added `MonthlyIncome_missing`
+  flag (missingness can be signal). Why NaN is fine: **XGBoost learns a default branch direction for
+  missing values at each split** and handles them natively; logistic regression CAN'T (arithmetic
+  breaks on NaN) so it needed `SimpleImputer(median)`.
+- **XGBoost call = two jobs:** `XGBClassifier(...)` only configures (fills a settings form; params:
+  n_estimators=ceiling, learning_rate=nudge size, max_depth, subsample/colsample, scale_pos_weight,
+  early_stopping_rounds). `.fit(..., eval_set=[(X_val,y_val)])` trains tree-by-tree. Watched the live
+  log: val AUC 0.805 (1 tree) -> 0.862 (50) -> plateau ~0.865; asked for 1000 trees but early stopping
+  kept only 153. eval_set is the validation data it watches; those AUCs are on data not trained on.
+- **predict_proba:** returns TWO numbers per person [P(repay), P(default)] summing to 1; `[:, 1]`
+  = "all rows, column 1" = P(default). Scored our two borrowers: repayer PD 9.5% (didn't default),
+  defaulter PD 90% (did). `predict` would hard-threshold at 0.5; `predict_proba` keeps the probability
+  so the LENDER picks the cutoff (ties to Session 3).
+- **Optuna:** `objective(trial)` builds+trains a model with settings Optuna proposes via
+  `trial.suggest_int/float(name, lo, hi)` and RETURNS val AUC (the number to maximize). `create_study
+  (direction="maximize")` + `study.optimize(objective, n_trials=N)` runs it N times, learning from past
+  trials. Watched 10 trials: all landed 0.8616-0.8651 (tiny spread -> tuning barely helps here).
+  Optimizes on validation, never test.
+
+### Next session
+- New material, same live style: **LightGBM + CatBoost** head-to-head with XGBoost, then **probability
+  calibration**.
