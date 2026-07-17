@@ -3,10 +3,12 @@ name = "credit-scoring-ml"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "catboost>=1.2.10",
     "ipykernel>=7.3.0",
     "jupyter>=1.1.1",
     "jupyterlab>=4.6.1",
     "kaggle>=2.2.3",
+    "lightgbm>=4.6.0",
     "matplotlib>=3.11.0",
     "numpy>=2.5.1",
     "openpyxl>=3.1.5",

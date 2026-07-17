@@ -205,3 +205,42 @@ and output live in chat and explaining code line by line. See [[feedback-credit-
 ### Next session
 - New material, same live style: **LightGBM + CatBoost** head-to-head with XGBoost, then **probability
   calibration**.
+
+---
+
+## Session 6 — 2026-07-17 — LightGBM + CatBoost + calibration (Phase 2, tasks 3 & 5), live style
+
+Done interactively in chat (real output shown, explained as we went). Also did a hands-on exercise
+first: user ranked 3 made-up applicants by default risk and reasoned correctly (income doesn't save a
+bad payer; maxed-out utilization is a big risk signal even without past misses).
+
+### Concepts learned
+- **LightGBM vs CatBoost vs XGBoost** (same data, same split): XGBoost 0.8686, CatBoost **0.8689**
+  (marginally best, strong out-of-the-box as advertised), LightGBM **0.8411** untuned.
+- **"Defaults aren't destiny":** LightGBM lagged only because its settings were borrowed from XGBoost.
+  Its growth is leaf-wise; key brakes are `num_leaves` (fewer=simpler) and `min_child_samples`
+  (higher=more regularized). Optuna-tuned it jumped 0.8411 -> **0.8644**, into the pack. Trial with
+  num_leaves=234 overfit (0.814); winners used num_leaves~30 + min_child_samples=200. Lesson: benchmark
+  all three on YOUR data; newer/faster != automatically better.
+- **All three boosters handle NaN natively** — the cleaning carried over unchanged.
+- **Calibration** (the big one): boosting models RANK well but their raw probabilities can be
+  dishonest. Here `scale_pos_weight`~14 (used to fight imbalance) inflated every predicted PD 2-10x.
+  Showed it with a reliability table: model said 26% where reality was 2.6%; said 86% where reality
+  was 37%. AUC didn't care (ranking fine) — that's why you must check calibration separately.
+- **The fix:** fit a calibrator on a holdout (we used the validation set) with
+  `CalibratedClassifierCV(FrozenEstimator(model), method=...)`, evaluate on untouched test.
+  **Platt/sigmoid** = smooth S-curve (safer on small data); **isotonic** = free-form monotonic (best
+  with lots of data). After calibration both columns sat right on "really happened" (isotonic: says
+  6.9% / real 6.7%; says 36.3% / real 37.1%). **AUC unchanged (0.8686 all three)** — calibration
+  rescales numbers without reordering anyone. Real trade-off learned: scale_pos_weight buys ranking at
+  the cost of honest probabilities; calibration buys the honesty back for free.
+
+### Not yet done from Phase 2
+- SMOTE/ADASYN oversampling (we only did scale_pos_weight / class_weight for imbalance).
+- A consolidated model-comparison notebook (this session's work is not yet saved as a .ipynb).
+- Home Credit (7-table multi-table feature engineering) — the big Phase 2 finale / bridge to DL.
+
+### Next session (options)
+- Consolidate Session 5-6 live work into `notebooks/05_model_comparison_calibration.ipynb`.
+- OR start **Home Credit** multi-table feature engineering.
+- OR begin **Phase 3 deep learning** (PyTorch, MLP from scratch).
