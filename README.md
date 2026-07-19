@@ -57,8 +57,9 @@ docs/             # notes, theory writeups
 **Phase 2 — Classical ML on real data (DONE)**
 - [x] `04` Give Me Some Credit + XGBoost (AUC 0.869) vs Logistic Regression (0.820), Optuna
 - [x] `05` XGBoost vs LightGBM vs CatBoost, LightGBM tuning, probability calibration (Platt/isotonic)
+- [x] `06` Home Credit multi-table feature engineering (bureau + previous_application, AUC 0.754→0.765)
 - [ ] (deferred) SMOTE/ADASYN oversampling comparison
-- [ ] (deferred) Home Credit 7-table feature engineering — data downloaded, not yet built
+- [ ] (deferred) Home Credit: aggregate remaining 4 child tables for 100+ features / 0.78+ AUC
 
 **Phase 3 — Deep learning (NEXT)**
 - [ ] PyTorch: tensors, autograd, MLP from scratch, compare to XGBoost

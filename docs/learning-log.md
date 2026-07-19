@@ -270,6 +270,36 @@ Notebook 05 built, executed, committed. User chose to end Phase 2 here (leaving 
 ### Next: Phase 3 — Deep Learning
 - PyTorch fundamentals: tensors, autograd, computation graph.
 - Build an MLP from scratch, full training loop, on data the user already knows (Give Me Some Credit).
-- Honest comparison: does a neural net beat XGBoost on static tabular features? (Usually not — that's
+- Honest comparison: does a neural net beat XGBoost on static tabular features? (Usually not, that's
   the point, and it motivates why LSTMs on payment SEQUENCES are where DL actually wins.)
 - Keep the live teaching style: show data/output in chat, explain line by line, small steps.
+
+---
+
+## Session 7 — 2026-07-19 — Home Credit multi-table feature engineering (Phase 2 finale), live style
+
+User chose "Home Credit first, then DL", then "one more round to watch it compound." Notebook 06 built
+and executed. Done live in chat with real output.
+
+### Concepts learned
+- **The 7-table / one-to-many problem:** main table `application_train` (307k applicants, 1 row each,
+  8.1% default). Child tables have MANY rows per applicant (bureau: 1.7M rows = past loans at other
+  lenders, ~5-6 each). XGBoost needs 1 row per person, so we must aggregate.
+- **The core skill = `groupby -> flag -> agg -> merge`:**
+  - `groupby("SK_ID_CURR")` buckets each applicant's child rows.
+  - `.agg(name=(col, func))` collapses each bucket to summary numbers (count/sum/mean/max/min).
+  - To aggregate a CATEGORY, make a 0/1 flag first (e.g. is_active = CREDIT_ACTIVE=="Active") then sum.
+  - `merge(..., how="left")` attaches features to the main table, keeping all 307k applicants; no
+    history -> NaN (XGBoost handles natively). 44,020 applicants had no bureau history.
+- Traced applicant 100047: 5 bureau rows collapsed to 1 row of features (loan_count 5, active 3,
+  total_debt ~3.22M); they defaulted.
+- **Feature engineering COMPOUNDS (the payoff test):** application numerics only AUC 0.7542;
+  +6 simple bureau feats 0.7560; +17 richer bureau feats 0.7577; +16 previous_application feats 0.7652.
+  Total +0.011 from 2 of 6 child tables. previous_application (own history with this lender) lifted
+  more than bureau. Path to brief's 0.78+ = all 6 tables, hundreds of features. Technique is simple;
+  THOROUGHNESS is the skill (junior vs senior).
+- Honest note: single-table lift is small (app table already has strong EXT_SOURCE_* bureau-score
+  columns); the value is cumulative across tables.
+
+### Phase 2 truly complete now (notebooks 01-06).
+### Next: Phase 3 deep learning (PyTorch, MLP from scratch, MLP-vs-XGBoost honest test).
