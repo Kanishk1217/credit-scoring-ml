@@ -244,3 +244,32 @@ bad payer; maxed-out utilization is a big risk signal even without past misses).
 - Consolidate Session 5-6 live work into `notebooks/05_model_comparison_calibration.ipynb`.
 - OR start **Home Credit** multi-table feature engineering.
 - OR begin **Phase 3 deep learning** (PyTorch, MLP from scratch).
+
+---
+
+## Phase 2 CLOSED — 2026-07-19
+
+Notebook 05 built, executed, committed. User chose to end Phase 2 here (leaving Home Credit for later).
+
+**What Phase 1 + 2 delivered (notebooks 01-05):**
+- Full classical credit-scoring pipeline on tabular data, learned end to end.
+- German Credit: EDA, WoE/IV, logistic-regression scorecard (AUC 0.80).
+- Give Me Some Credit: cleaning messy data, XGBoost (0.869) beating logistic regression (0.820),
+  Optuna, the depth/overfitting lesson.
+- Three-way booster comparison (XGBoost ~= CatBoost 0.869; LightGBM 0.841 untuned -> 0.864 tuned).
+- Probability calibration (Platt/isotonic) to turn good rankings into honest PDs.
+- Recurring principles internalized: accuracy lies on imbalanced data (use AUC/Gini/KS); never leak
+  (learn encodings/bins/tuning/calibration on train only); model gives a number, business sets the
+  threshold; ranking != calibrated probability; honesty over hype.
+
+**Consciously DEFERRED (can revisit anytime):**
+- SMOTE/ADASYN oversampling vs scale_pos_weight (small topic).
+- Home Credit 7-table aggregation (data is downloaded at data/raw/home_credit/, 307k applicants,
+  7 tables, ~2.5GB). This is the "junior->senior" feature-engineering skill when we want it.
+
+### Next: Phase 3 — Deep Learning
+- PyTorch fundamentals: tensors, autograd, computation graph.
+- Build an MLP from scratch, full training loop, on data the user already knows (Give Me Some Credit).
+- Honest comparison: does a neural net beat XGBoost on static tabular features? (Usually not — that's
+  the point, and it motivates why LSTMs on payment SEQUENCES are where DL actually wins.)
+- Keep the live teaching style: show data/output in chat, explain line by line, small steps.

@@ -47,5 +47,18 @@ docs/             # notes, theory writeups
 | LendingClub | Kaggle | Alternative-data / thin-file phase |
 
 ## Progress
-- [x] Phase 1.1 — environment setup (uv, Python 3.12, classical stack)
-- [ ] Phase 1.4 — EDA on German Credit + Give Me Some Credit
+
+**Phase 1 — Foundations (DONE)**
+- [x] Environment setup (uv, Python 3.12, classical stack)
+- [x] `01` German Credit EDA (imbalance, decoding, default-rate-by-category)
+- [x] `02` Weight of Evidence + Information Value
+- [x] `03` Logistic-regression scorecard (AUC 0.80, points, AUC/Gini/KS, calibration-free)
+
+**Phase 2 — Classical ML on real data (DONE)**
+- [x] `04` Give Me Some Credit + XGBoost (AUC 0.869) vs Logistic Regression (0.820), Optuna
+- [x] `05` XGBoost vs LightGBM vs CatBoost, LightGBM tuning, probability calibration (Platt/isotonic)
+- [ ] (deferred) SMOTE/ADASYN oversampling comparison
+- [ ] (deferred) Home Credit 7-table feature engineering — data downloaded, not yet built
+
+**Phase 3 — Deep learning (NEXT)**
+- [ ] PyTorch: tensors, autograd, MLP from scratch, compare to XGBoost
