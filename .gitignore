@@ -21,3 +21,6 @@ kaggle.json
 
 # OS
 .DS_Store
+
+# CatBoost training logs
+catboost_info/
