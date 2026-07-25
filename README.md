@@ -1,3 +1,13 @@
+---
+title: Credit Scoring API
+emoji: 📊
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Credit Scoring ML System
 
 A credit-scoring system that estimates a loan applicant's **probability of default**, built as a

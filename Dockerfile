@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
+# keep caches inside /app (writable on Hugging Face Spaces)
+ENV HOME=/app UV_CACHE_DIR=/app/.uv-cache
+
 # install dependencies first (cached layer)
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
@@ -21,5 +24,5 @@ COPY src ./src
 COPY models ./models
 
 EXPOSE 8000
-# Render/most PaaS provide $PORT; default to 8000 locally
-CMD ["sh", "-c", "uv run uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# run uvicorn straight from the built venv (no runtime `uv` work); fixed port for Hugging Face
+CMD [".venv/bin/uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
