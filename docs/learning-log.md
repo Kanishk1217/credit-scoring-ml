@@ -340,3 +340,32 @@ reject) — deferred until after DL. Recorded in project memory.
 ### Env gotcha logged: torch + xgboost segfault in same process (OpenMP). Run in separate processes.
 
 ### Next: LSTM/GRU on payment sequences — where deep learning finally wins. Then the hybrid model.
+
+---
+
+## Session 9 — 2026-07-25 — LSTMs & sequences (Phase 3), live style
+
+Notebook 08 saved. Downloaded Taiwan Credit Card (data/raw/taiwan_credit/UCI_Credit_Card.csv, 30k
+accounts, 6 months of payment status per account, 22% default). Built from the ground up.
+
+### Concepts learned
+- **Why sequences need a different model:** the 6 monthly PAY columns carry signal in their ORDER
+  (improving vs deteriorating), which XGBoost/MLP treat as unordered columns and can't fully see.
+  Showed 2 borrowers with the SAME payment values in different order -> opposite outcomes.
+- **Recurrent memory (hand-built tiny RNN):** keep a running hidden state h, update each step
+  `h=tanh(wx*x + wh*h)`. The final memory summarizes the trajectory, weighting recent months more.
+  Demo: improving borrower final memory -0.77 (safe), deteriorating +0.86 (risky); REVERSING the
+  same values flipped it to -0.92. Order is the signal; memory captures it.
+- **LSTM = robust RNN:** adds a cell state + 3 gates (forget/input/output = sigmoid 0-1 dials) to hold
+  long-range info and avoid vanishing gradients.
+- **Built an LSTM in PyTorch:** `nn.LSTM(input_size, hidden_size, batch_first=True)`; input shape
+  `(batch, timesteps, features)` = (N, 6, 1); take the FINAL hidden state `hn[-1]` -> Linear -> logit.
+  Tiny model (4,513 params), trained 25 epochs.
+- **HONEST result:** LSTM test AUC **0.737** vs XGBoost on the same 6 PAY cols (static) **0.741** —
+  XGBoost still edges it. Why: 6 months is SHORT (most signal is in the single most-recent month, which
+  the tree exploits) and LSTMs are data-hungry. **Sequential data alone doesn't make the LSTM win; the
+  sequences must be long/rich enough that trajectory beats the latest snapshot.**
+- Where the LSTM pays off: longer/richer sequences (Home Credit installments, 12+ months, multi-feature)
+  and especially the HYBRID (XGBoost static + LSTM temporal embedding) = project headline model.
+
+### Next: the HYBRID model (fuse XGBoost static score + LSTM temporal embedding in a final MLP).
