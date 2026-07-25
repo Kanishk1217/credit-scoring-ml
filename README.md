@@ -64,5 +64,6 @@ docs/             # notes, theory writeups
 **Phase 3 — Deep learning (IN PROGRESS)**
 - [x] `07` Neuron-from-scratch → PyTorch MLP; honest finale MLP 0.837 vs XGBoost 0.869 (trees win on tabular)
 - [x] `08` LSTM on payment sequences (Taiwan, 6 months); honest result LSTM 0.737 ~ XGBoost 0.741
-- [ ] Hybrid model: XGBoost static score + LSTM temporal embedding (the headline model)
-- [ ] Longer/richer sequences from Home Credit installments (where LSTM edge grows)
+- [x] `09` **HYBRID** XGBoost static + LSTM temporal → 0.775 (beats both singles by +0.039) — headline model
+- [ ] Longer/richer sequences from Home Credit installments (where LSTM edge grows further)
+- [ ] Explainability (SHAP), fairness audit, FastAPI + Streamlit deployment (Phases 5-6)

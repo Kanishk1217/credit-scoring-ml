@@ -369,3 +369,35 @@ accounts, 6 months of payment status per account, 22% default). Built from the g
   and especially the HYBRID (XGBoost static + LSTM temporal embedding) = project headline model.
 
 ### Next: the HYBRID model (fuse XGBoost static score + LSTM temporal embedding in a final MLP).
+
+---
+
+## Session 10 — 2026-07-25 — The HYBRID model (Phase 3-4 headline), live style
+
+Notebook 09 + src/make_hybrid_features.py saved. The culmination: fuse static ML + deep learning.
+
+### Concepts learned
+- **Hybrid architecture:** static features -> XGBoost -> risk score (scalar); payment sequence ->
+  LSTM -> 32-dim temporal embedding; **concatenate** [score, embedding] -> small MLP -> PD.
+- **Why fuse:** the two branches carry COMPLEMENTARY info. XGBoost sees the static snapshot (limit,
+  age, bill/pay amounts); the LSTM sees the payment TRAJECTORY. Neither alone has both.
+- **Leakage care (ties to earlier lessons):** XGBoost scores for TRAIN rows must be out-of-fold
+  (`cross_val_predict`, 5-fold) so the fusion MLP never trains on a score that saw its own label.
+  Val/test scores from the model fit on full train.
+- **Two-process pattern (OpenMP):** src/make_hybrid_features.py (xgboost) writes
+  data/processed/hybrid_feats.npz; notebook 09 (torch) loads it and trains the fusion. Never import
+  torch + xgboost in one process.
+- **RESULT (Taiwan test AUC):** XGBoost-static 0.7298, LSTM-sequence 0.7365, **HYBRID 0.7750**
+  (+0.0385 over best single, and beats the 0.741 XGBoost-on-PAY-cols from nb08 — best model in the
+  project so far). The hybrid genuinely won.
+- **The project's central thesis, proven by hand:** static ML and deep learning are COMPLEMENTARY,
+  not competitors. Use trees for tables, LSTMs for sequences, and FUSE them.
+
+### Deep-learning arc complete (notebooks 07-09): neuron -> MLP -> LSTM -> hybrid, all from scratch.
+
+### Remaining project phases (not yet done):
+- Home Credit installments: longer/richer sequences to grow the LSTM/hybrid edge.
+- Alternative-data / thin-file model (Model 4).
+- Explainability (SHAP/LIME), fairness audit (Fairlearn) — Phase 5.
+- FastAPI serving + Streamlit dashboard + deployment — Phase 6.
+- FUTURE (user idea): risk-based pricing (loan amount + interest rate). See project memory.
