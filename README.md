@@ -61,5 +61,7 @@ docs/             # notes, theory writeups
 - [ ] (deferred) SMOTE/ADASYN oversampling comparison
 - [ ] (deferred) Home Credit: aggregate remaining 4 child tables for 100+ features / 0.78+ AUC
 
-**Phase 3 — Deep learning (NEXT)**
-- [ ] PyTorch: tensors, autograd, MLP from scratch, compare to XGBoost
+**Phase 3 — Deep learning (IN PROGRESS)**
+- [x] `07` Neuron-from-scratch → PyTorch MLP; honest finale MLP 0.837 vs XGBoost 0.869 (trees win on tabular)
+- [ ] LSTM/GRU on 12-month payment sequences (where DL actually wins)
+- [ ] Hybrid model: XGBoost static score + LSTM temporal embedding

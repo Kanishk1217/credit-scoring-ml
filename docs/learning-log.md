@@ -303,3 +303,40 @@ and executed. Done live in chat with real output.
 
 ### Phase 2 truly complete now (notebooks 01-06).
 ### Next: Phase 3 deep learning (PyTorch, MLP from scratch, MLP-vs-XGBoost honest test).
+
+---
+
+## Session 8 — 2026-07-25 — Deep Learning foundations: neuron → MLP (Phase 3), live style
+
+Built from the ground up, live in chat. Notebook 07 saved. Used the pytorch-patterns skill.
+User also banked a FUTURE idea: risk-based pricing (loan amount + interest rate, not just approve/
+reject) — deferred until after DL. Recorded in project memory.
+
+### Concepts learned (deeply, from scratch)
+- **A neuron = logistic regression:** weighted sum (z = w·x + b) then sigmoid squash to a probability.
+  Weights=coefficients, bias=intercept, sigmoid=the PD map from the scorecard. Built one neuron with
+  made-up then real numbers.
+- **How a network learns = one 5-step loop:** forward (predict) -> loss -> gradient -> update -> repeat.
+- **Loss = binary cross-entropy:** rewards confident-correct (tiny loss), punishes confident-wrong
+  (big loss). Untrained neuron predicts ~0.5, loss ~0.693 = -ln(0.5) = the starting line.
+- **Ranking vs loss (callback to calibration):** an untrained neuron with tiny random weights had
+  AUC 0.81 (lucky ranking) but loss 0.69 (useless probabilities). We train on LOSS because it cares
+  about the actual probability values, not just order.
+- **Gradient descent (the one new idea):** gradient = slope of loss vs each weight; step OPPOSITE
+  (downhill); learning_rate = step size. For a neuron: grad_w = mean(error × input), error = p - y.
+  Built it from scratch in numpy: loss 0.69 -> 0.60 (1 step) -> 0.20 (converged). Our weights matched
+  sklearn LogisticRegression EXACTLY ([0.752,-0.25,0.411], bias -3.131). We built LR from nothing.
+- **PyTorch = the same loop, mechanized:** nn.Linear(3,1)=one neuron, BCEWithLogitsLoss=sigmoid+CE,
+  `loss.backward()` = AUTOGRAD (computes grad_w automatically) = **backpropagation** (chain rule
+  through layers). PyTorch neuron matched from-scratch exactly.
+- **Hidden layers + ReLU = a real MLP:** stacking Linear layers alone stays linear; ReLU (max(0,x))
+  adds the kink that lets it learn curves/interactions. Built Linear->ReLU->Linear->ReLU->Linear.
+- **MLPs need impute + standardize** (can't eat NaN or raw scales), unlike XGBoost.
+- **HONEST FINALE:** on Give Me Some Credit static features, XGBoost **0.869** beats MLP **0.837** by
+  ~0.03. Trees win on tabular data (mixed scales, NaN, thresholds, interactions, little tuning). This
+  is the field consensus. **The lesson & project thesis:** use DL where data has structure a tree
+  can't see (images, text, SEQUENCES). Motivates the LSTM on 12-month payment sequences next.
+
+### Env gotcha logged: torch + xgboost segfault in same process (OpenMP). Run in separate processes.
+
+### Next: LSTM/GRU on payment sequences — where deep learning finally wins. Then the hybrid model.
