@@ -1,0 +1,13 @@
+.venv/
+data/
+notebooks/
+docs/
+reports/
+tests/
+.git/
+.github/
+__pycache__/
+*.ipynb
+.env
+.DS_Store
+catboost_info/

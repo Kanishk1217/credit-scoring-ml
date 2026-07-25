@@ -4,6 +4,7 @@ Graduated out of notebook 01 so every notebook and script shares one source of t
 for the German Credit schema instead of copy-pasting it.
 """
 from pathlib import Path
+
 import pandas as pd
 
 # Repo root = one level up from this file's folder (src/ -> repo root).

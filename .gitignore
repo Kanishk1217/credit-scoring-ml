@@ -11,9 +11,10 @@ data/processed/*
 !data/processed/.gitkeep
 
 # Trained model artifacts
-models/*.pkl
-models/*.pt
-models/*.joblib
+models/*
+!models/hybrid_xgb.joblib
+!models/hybrid_fusion.pt
+!models/hybrid_config.json
 
 # Secrets
 kaggle.json

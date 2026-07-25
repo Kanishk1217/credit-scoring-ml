@@ -8,13 +8,18 @@ process on this machine (OpenMP conflict).
 
 Usage:  uv run python src/make_hybrid_features.py
 """
-import warnings; warnings.filterwarnings("ignore")
+import json
+import warnings
 from pathlib import Path
-import json, joblib
-import numpy as np, pandas as pd
-from sklearn.model_selection import train_test_split, cross_val_predict
+
+import joblib
+import numpy as np
+import pandas as pd
 from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import cross_val_predict, train_test_split
 from xgboost import XGBClassifier
+
+warnings.filterwarnings("ignore")
 
 ROOT = Path(__file__).resolve().parents[1]
 df = pd.read_csv(ROOT / "data/raw/taiwan_credit/UCI_Credit_Card.csv")

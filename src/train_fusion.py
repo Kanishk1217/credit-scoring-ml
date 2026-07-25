@@ -5,13 +5,18 @@ models/hybrid_fusion.pt. Separate process from the XGBoost branch (OpenMP confli
 
 Usage:  uv run python src/train_fusion.py
 """
-import warnings; warnings.filterwarnings("ignore")
+import warnings
 from pathlib import Path
-import numpy as np, torch, torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
+
+import numpy as np
+import torch
+import torch.nn as nn
 from sklearn.metrics import roc_auc_score
+from torch.utils.data import DataLoader, TensorDataset
+
 from hybrid_model import Hybrid
 
+warnings.filterwarnings("ignore")
 torch.manual_seed(42); np.random.seed(42)
 ROOT = Path(__file__).resolve().parents[1]
 d = np.load(ROOT / "data/processed/hybrid_feats.npz")
@@ -27,7 +32,7 @@ opt = torch.optim.Adam(model.parameters(), lr=5e-3)
 loader = DataLoader(TensorDataset(seq_tr, s_tr, ytr_t), batch_size=256, shuffle=True)
 
 best, best_state = 0, None
-for epoch in range(30):
+for _epoch in range(30):
     model.train()
     for xb, sb, yb in loader:
         opt.zero_grad(); crit(model(xb, sb), yb).backward(); opt.step()
