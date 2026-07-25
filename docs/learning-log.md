@@ -467,3 +467,34 @@ the full production backend.
 
 ### Next: UI/UX discussion + frontend (loan-officer dashboard). Then Render deploy for a public URL.
 User wants to think through functionality + how banks/creditors would use it.
+
+---
+
+## Session 13 — 2026-07-25 — Production pipeline direction + synthetic data (stage 1)
+
+User asked how to overcome the "not for real lending" limitation and how real applicants get used.
+Explained: scoring new people already works (that's the API); the gap is TRUST, which needs a
+lender's own outcome data + retraining + calibration + fairness + shadow-pilot + drift monitoring.
+User chose direction: **"full production pipeline on simulated-at-scale data"** — build the real
+machinery so swapping sim data for a real lender's book is a one-line change.
+
+Also: user unhappy with the homepage design ("does not look good, use better components"). Chose to
+CONNECT CHROME so I can iterate visually with shadcn/ui. **Frontend is PAUSED until Chrome is
+connected** (extension currently not connected — can't screenshot). Plan: rebuild with shadcn/ui.
+
+### Production-pipeline roadmap (agreed)
+1. Synthetic data at scale (DONE this session) 2. Config-driven training pipeline 3. SHAP
+explainability -> API + frontend 4. Fairness audit 5. Drift monitoring (PSI) + retrain trigger
+6. Model registry/versioning.
+
+### Stage 1 built: src/synth_data.py
+- generate(n, seed, months=12) -> realistic lender book: static financial features + 12-month payment
+  sequence + default. Schema mirrors real data (data-source-agnostic pipeline).
+- Design: TWO semi-independent latents — `fin` (financial risk, observable from static) and `beh`
+  (payment discipline, only revealed by the sequence). Sequence generated with momentum. Default
+  depends on BOTH -> static & sequence are COMPLEMENTARY.
+- Verified (100k rows, 22.4% default): static AUC 0.729, sequence 0.834, static+sequence **0.886**.
+  Hybrid genuinely beats both, like real credit data.
+
+### Next: stage 2 — config-driven training pipeline (data -> features -> hybrid -> calibrate ->
+version), runnable on sim data now and real data later by swapping the loader.
