@@ -17,4 +17,5 @@ COPY api ./api
 COPY models/hybrid_xgb.joblib models/hybrid_config.json models/hybrid_fusion.npz ./models/
 
 EXPOSE 8000
-CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# bind to the host's $PORT if provided (Render), else 8000 (local / fixed-port hosts)
+CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
