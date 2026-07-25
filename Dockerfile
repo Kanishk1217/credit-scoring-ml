@@ -1,28 +1,20 @@
-# Credit Scoring API — container image
+# Credit Scoring API — slim container (no PyTorch; LSTM runs in NumPy). Fits a free 512MB host.
 FROM python:3.12-slim
 
-# OpenMP: keep xgboost + torch from clashing in one process
 ENV OMP_NUM_THREADS=1 \
-    KMP_DUPLICATE_LIB_OK=TRUE \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-RUN pip install --no-cache-dir uv
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/app
 
 WORKDIR /app
 
-# keep caches inside /app (writable on Hugging Face Spaces)
-ENV HOME=/app UV_CACHE_DIR=/app/.uv-cache
+# install only the runtime deps (cached layer)
+COPY requirements-serve.txt ./
+RUN pip install --no-cache-dir -r requirements-serve.txt
 
-# install dependencies first (cached layer)
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
-
-# app code + model artifacts
+# app code + model artifacts (no torch model needed; NumPy weights .npz is used)
 COPY api ./api
-COPY src ./src
-COPY models ./models
+COPY models/hybrid_xgb.joblib models/hybrid_config.json models/hybrid_fusion.npz ./models/
 
 EXPOSE 8000
-# run uvicorn straight from the built venv (no runtime `uv` work); fixed port for Hugging Face
-CMD [".venv/bin/uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]

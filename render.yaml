@@ -3,7 +3,7 @@ services:
   - type: web
     name: credit-scoring-api
     runtime: docker
-    plan: starter          # free (512MB) OOMs loading PyTorch + XGBoost; Starter (~$7/mo) fits
+    plan: free             # slim image (NumPy LSTM, no PyTorch) fits the free 512MB tier
     healthCheckPath: /
     envVars:
       - key: CREDIT_ENVIRONMENT

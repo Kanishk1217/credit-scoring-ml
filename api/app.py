@@ -11,16 +11,14 @@ Run locally:
     uv run uvicorn api.app:app --port 8077
     # docs: http://localhost:8077/docs   (send header  X-API-Key: <your key>)
 """
-# --- OpenMP fix: MUST be before importing xgboost/torch, and xgboost MUST come before torch ---
+# limit XGBoost threads (kind to small free instances); no torch here, so no OpenMP clash
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
-os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import json
 import logging
 import secrets
-import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -29,8 +27,7 @@ from typing import Annotated
 
 import joblib
 import numpy as np
-import torch
-import xgboost  # noqa: F401  (import order matters — before torch)
+import xgboost  # noqa: F401  (needed to unpickle the saved XGBoost model)
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -40,10 +37,10 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 from api.config import settings
-from hybrid_model import Hybrid
+from api.infer_numpy import NumpyHybrid
+
+ROOT = Path(__file__).resolve().parents[1]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("credit-api")
@@ -56,10 +53,7 @@ STATE: dict = {}
 async def lifespan(app: FastAPI):
     STATE["cfg"] = json.loads((ROOT / "models" / "hybrid_config.json").read_text())
     STATE["xgb"] = joblib.load(ROOT / "models" / "hybrid_xgb.joblib")
-    net = Hybrid(STATE["cfg"]["lstm_hidden"])
-    net.load_state_dict(torch.load(ROOT / "models" / "hybrid_fusion.pt"))
-    net.eval()
-    STATE["net"] = net
+    STATE["net"] = NumpyHybrid(ROOT / "models" / "hybrid_fusion.npz", STATE["cfg"]["lstm_hidden"])
     if not settings.api_key_set:
         logger.warning("No API keys configured (CREDIT_API_KEYS). Scoring endpoints will return 503.")
     logger.info("models loaded; %d API key(s) configured", len(settings.api_key_set))
@@ -178,12 +172,9 @@ def _score(a: Applicant) -> PredictionResponse:
     cfg, xgb, net = STATE["cfg"], STATE["xgb"], STATE["net"]
     static = np.array([[a.limit_bal, a.sex, a.education, a.marriage, a.age,
                         *a.bill_amt, *a.pay_amt]], dtype="float32")
-    score = xgb.predict_proba(static)[:, 1]
-    seq = (np.array([a.pay_status], dtype="float32") - cfg["seq_mean"]) / cfg["seq_std"]
-    with torch.no_grad():
-        pd_ = torch.sigmoid(
-            net(torch.tensor(seq).unsqueeze(-1), torch.tensor(score, dtype=torch.float32).unsqueeze(1))
-        ).item()
+    score = float(xgb.predict_proba(static)[0, 1])                       # XGBoost static branch
+    seq = [(float(v) - cfg["seq_mean"]) / cfg["seq_std"] for v in a.pay_status]
+    pd_ = net.predict(seq, score)                                       # NumPy LSTM + fusion
     rec = "decline" if pd_ >= 0.5 else "review" if pd_ >= 0.2 else "approve"
     audit.info("decision pd=%.4f recommendation=%s model=%s", pd_, rec, settings.app_version)
     return PredictionResponse(probability_of_default=round(pd_, 4), recommendation=rec,

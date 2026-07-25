@@ -15,6 +15,7 @@ models/*
 !models/hybrid_xgb.joblib
 !models/hybrid_fusion.pt
 !models/hybrid_config.json
+!models/hybrid_fusion.npz
 
 # Secrets
 kaggle.json
