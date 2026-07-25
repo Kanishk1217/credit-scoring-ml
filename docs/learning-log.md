@@ -435,3 +435,35 @@ resolved it concretely. Deployed the HYBRID (user's choice, the harder one).
 
 ### Next: push to GitHub, then deploy to Render (public URL). Model-artifact strategy needed (models/
 are git-ignored; either commit the small files or regenerate on deploy).
+
+---
+
+## Session 12 — 2026-07-25 — Production hardening + GitHub (Phase 6), used fastapi-patterns skill
+
+User: "don't just do security/auth/rate-limiting, fill the whole pipeline and make it perfect." Built
+the full production backend.
+
+### What we built (beyond the basic API)
+- **Security:** API-key auth (`X-API-Key`, constant-time `secrets.compare_digest`), per-key rate
+  limiting (slowapi), strict Pydantic validation (field bounds + custom validators), locked-down CORS
+  (exact origins), security headers (nosniff/DENY/no-referrer/no-store), non-leaking error handlers.
+  All secrets from env via pydantic-settings (env_prefix CREDIT_). .env gitignored, .env.example committed.
+- **Ops:** request-ID + latency logging middleware, audit log of every decision (regulatory trail),
+  `/predict/batch` (up to 1000 applicants).
+- **Quality:** pytest suite (tests/test_api.py: health, auth 401, validation 422, scoring, batch,
+  headers — 7 tests pass), ruff lint (config in pyproject, notebooks excluded), GitHub Actions CI
+  (.github/workflows/ci.yml: uv sync + ruff + pytest on push).
+- **Deploy:** Dockerfile (+ .dockerignore) and render.yaml. Committed the 3 small hybrid model files
+  (removed from gitignore) so CI + deploy have them.
+- **Docs:** docs/model_card.md (intended use, perf, limitations, fairness), rewritten README.md.
+- Config split: api/config.py (Settings), api/app.py (app). api/__init__.py added.
+
+### GitHub
+- gh had TWO accounts (active niharagility21, plus Kanishk1217). Switched active -> Kanishk1217.
+- Kanishk1217's keyring (fine-grained) token could NOT create repos; user supplied a classic PAT
+  (full scopes incl repo+workflow). **Repo: https://github.com/Kanishk1217/credit-scoring-ml (private).**
+- NOTE: active gh account is now Kanishk1217 (was niharagility21). Pushes to this repo need Kanishk1217
+  active. User should ROTATE the pasted PAT.
+
+### Next: UI/UX discussion + frontend (loan-officer dashboard). Then Render deploy for a public URL.
+User wants to think through functionality + how banks/creditors would use it.
