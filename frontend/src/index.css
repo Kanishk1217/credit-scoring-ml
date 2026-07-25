@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;0,9..144,600..700;1,9..144,400..600&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* Editorial minimalism — restraint, oversized type, warm off-white, one earthy accent.
+   No gradients, no glows, no grids. Type and whitespace carry it. */
+@theme {
+  --color-bg: #F4F1EA;          /* warm off-white */
+  --color-paper: #FBF9F4;       /* slightly lighter surface */
+  --color-ink: #17140F;         /* near-black */
+  --color-muted: #6E675C;       /* warm gray */
+  --color-faint: #A69E90;
+  --color-accent: #C15A34;      /* terracotta */
+  --color-line: #E2DCCF;        /* hairline */
+  --color-success: #4A6B3A;
+  --color-warning: #C08A2E;
+  --color-danger: #B23A2E;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+* { border-color: var(--color-line); }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-feature-settings: "ss01";
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--color-accent); color: var(--color-paper); }
+
+/* on-load hero animation */
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.9s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* masked line reveal (headline rises up from behind a clip) */
+@keyframes lineRise { from { transform: translateY(105%); } to { transform: translateY(0); } }
+.line-mask { overflow: hidden; display: block; padding-bottom: 0.16em; }
+.line-rise { display: block; animation: lineRise 1s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* cycling accent word swap */
+@keyframes wordIn { from { opacity: 0; transform: translateY(0.35em); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.word-in { display: inline-block; animation: wordIn 0.55s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* scroll-driven reveal (Chrome supports animation-timeline: view()) */
+@keyframes reveal { from { opacity: 0; transform: translateY(34px); } to { opacity: 1; transform: none; } }
+@supports (animation-timeline: view()) {
+  .reveal { animation: reveal linear both; animation-timeline: view(); animation-range: entry 0% cover 28%; }
+}
+
+/* thin marquee */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee { animation: marquee 28s linear infinite; }
+
+/* flowing background wave (a "trajectory" drifting through the hero) */
+@keyframes wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.animate-wave { animation: wave 20s linear infinite; }
+.animate-wave-slow { animation: wave 34s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}

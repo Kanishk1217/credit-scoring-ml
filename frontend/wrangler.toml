@@ -1,0 +1,8 @@
+name = "creditscore"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+# Non-secret var read by functions/api/[[path]].ts to reach the backend.
+# API_KEY is a secret, set separately with: npx wrangler pages secret put API_KEY
+[vars]
+BACKEND_URL = "https://credit-scoring-ml.onrender.com"
