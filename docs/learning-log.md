@@ -401,3 +401,37 @@ Notebook 09 + src/make_hybrid_features.py saved. The culmination: fuse static ML
 - Explainability (SHAP/LIME), fairness audit (Fairlearn) — Phase 5.
 - FastAPI serving + Streamlit dashboard + deployment — Phase 6.
 - FUTURE (user idea): risk-based pricing (loan amount + interest rate). See project memory.
+
+---
+
+## Session 11 — 2026-07-25 — Deployment: serving the hybrid as a live API (Phase 6 start)
+
+User was confused about "what to do with a trained model after train/test/accuracy." This session
+resolved it concretely. Deployed the HYBRID (user's choice, the harder one).
+
+### The key concept (finally made concrete)
+- **A trained model is just a FILE.** Training's whole output is that file. Everything after is
+  loading the file and calling it on new data. We saved: models/hybrid_xgb.joblib (XGBoost),
+  models/hybrid_fusion.pt (LSTM+fusion), models/hybrid_config.json (preprocessing recipe).
+- **The deployment lifecycle:** finalize -> SAVE to file -> bundle preprocessing -> wrap in an API
+  (load file once at startup) -> new raw input hits endpoint -> preprocess -> predict -> return PD ->
+  monitor for drift.
+
+### What we built
+- src/hybrid_model.py: shared Hybrid nn.Module (so training + serving use the same architecture).
+- src/make_hybrid_features.py: xgboost branch, saves model + config + OOF features (run first).
+- src/train_fusion.py: torch branch, trains + saves the fusion net (run second).
+- api/app.py: FastAPI. Loads the 3 files once, `/predict` endpoint: raw applicant JSON -> preprocess
+  (static features in training order -> XGBoost score; standardize sequence) -> fusion net -> PD +
+  approve/review/decline recommendation (thresholds = lender decision, Session 3 lesson).
+- Tested LIVE: deteriorating applicant PD 0.776 (decline), healthy applicant PD 0.204 (review).
+
+### Engineering lessons
+- **OpenMP segfault SOLVED for serving:** set OMP_NUM_THREADS=1 + KMP_DUPLICATE_LIB_OK=TRUE at top of
+  app.py BEFORE imports, and import xgboost BEFORE torch. Then one process serves both. (Training
+  notebooks stay torch-only.)
+- Port 8000 was taken by another of the user's apps -> used 8077. `uvicorn api.app:app --port 8077`,
+  interactive docs at /docs.
+
+### Next: push to GitHub, then deploy to Render (public URL). Model-artifact strategy needed (models/
+are git-ignored; either commit the small files or regenerate on deploy).

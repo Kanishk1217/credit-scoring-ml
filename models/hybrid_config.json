@@ -1,0 +1,32 @@
+{
+  "static_cols": [
+    "LIMIT_BAL",
+    "SEX",
+    "EDUCATION",
+    "MARRIAGE",
+    "AGE",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6"
+  ],
+  "seq_cols": [
+    "PAY_6",
+    "PAY_5",
+    "PAY_4",
+    "PAY_3",
+    "PAY_2",
+    "PAY_0"
+  ],
+  "seq_mean": -0.1824388951063156,
+  "seq_std": 1.1656373739242554,
+  "lstm_hidden": 32
+}

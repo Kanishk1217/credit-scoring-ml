@@ -25,6 +25,20 @@ uv run jupyter lab      # launch Jupyter for the notebooks
 uv run python <file>    # run any script inside the project env
 ```
 
+## Serving the model (local API)
+The hybrid model is served by a FastAPI app that loads the saved model files and predicts for new
+applicants.
+
+```bash
+# 1. build the model files (two processes — torch + xgboost can't share one on macOS)
+uv run python src/make_hybrid_features.py   # -> models/hybrid_xgb.joblib + config
+uv run python src/train_fusion.py           # -> models/hybrid_fusion.pt
+
+# 2. run the API (port 8000 may be busy; pick a free one)
+uv run uvicorn api.app:app --port 8077
+#    open http://localhost:8077/docs for an interactive form
+```
+
 ## Layout
 ```
 data/raw/         # original downloaded datasets (git-ignored)

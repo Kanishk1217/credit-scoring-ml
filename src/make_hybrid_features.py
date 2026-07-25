@@ -10,6 +10,7 @@ Usage:  uv run python src/make_hybrid_features.py
 """
 import warnings; warnings.filterwarnings("ignore")
 from pathlib import Path
+import json, joblib
 import numpy as np, pandas as pd
 from sklearn.model_selection import train_test_split, cross_val_predict
 from sklearn.metrics import roc_auc_score
@@ -54,3 +55,17 @@ np.savez(out,
          y_tr=y[itr].astype("float32"), y_va=y[iva].astype("float32"), y_te=y[ite].astype("float32"),
          xgb_auc=np.float32(xgb_auc))
 print("saved", out)
+
+# ---- DEPLOYMENT ARTIFACTS: the model becomes a FILE ----
+models = ROOT / "models"; models.mkdir(exist_ok=True)
+joblib.dump(m, models / "hybrid_xgb.joblib")                       # the trained XGBoost, as a file
+config = {                                                        # everything needed to preprocess raw input
+    "static_cols": static_cols,
+    "seq_cols": seq_cols,
+    "seq_mean": float(df[seq_cols].values.astype("float32").mean()),
+    "seq_std":  float(df[seq_cols].values.astype("float32").std()),
+    "lstm_hidden": 32,
+}
+(models / "hybrid_config.json").write_text(json.dumps(config, indent=2))
+print("saved", models / "hybrid_xgb.joblib")
+print("saved", models / "hybrid_config.json")
