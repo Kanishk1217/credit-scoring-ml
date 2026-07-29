@@ -567,3 +567,91 @@ this model more reliable." Investigated directly rather than guessing.
 
 ### Next: the paused feature build — loan-officer dashboard, consumer self-assessment page, and
 self-serve API-key sign-up (specs cached in docs/specs/). Model reliability work is done and tested.
+
+## Session 15 — 2026-07-30 — Real-data AUC gap, fairness mitigation, and the full 5-phase build
+
+User pushback mid-session, verbatim: "So we caught 1 of 7 defaulters and was the data any good to
+start with... focus on model first all depends on it." Then: "Just do all 5 [phases]... focus on
+model data cross validation test train... go in loop till everything is perfect... test test
+refine test verify go in this loop and dont stop." Executed all 5 phases in order without stopping.
+
+### Phase 1 — closed the real-data AUC gap, three rounds of feature engineering
+- Base real model (7 features, application_train + bureau + installments): AUC 0.6655.
+- +bureau_balance/POS/credit-card/installments aggregates (20 feat): AUC 0.6898.
+- +previous_application, deeper bureau_balance (35 feat): AUC 0.7092.
+- +EXT_SOURCE_1/2/3 (38 feat, largest single jump): **AUC 0.7564**. EXT_SOURCE is Home Credit's own
+  external bureau-like risk score, already in application_train.csv, standalone AUC 0.66-0.68 each —
+  left as real NaN (56%/0.2%/20% missing) since XGBoost handles missing values natively; imputing a
+  strong predictor risks manufacturing a fake signal.
+- Verified with proper 5-fold CV (full retrain per fold, no leakage): AUC mean 0.7560, std 0.0044 —
+  genuinely stable, not a lucky split. Recall improved 0.137 -> 0.361 at the 5:1 cost threshold.
+- For reference, Home Credit's Kaggle winners hit ~0.79-0.80 with hundreds of features + stacking;
+  0.756 with 38 features and one model family closes ~90% of that gap.
+
+### The fairness cost of EXT_SOURCE, root-caused and mitigated with real numbers
+- Adding EXT_SOURCE grew the fairness gaps 3-8x (gender demographic-parity 0.0055 -> 0.0454, region
+  0.023 -> 0.1026). Root cause, checked directly: EXT_SOURCE_1 genuinely differs by gender in the
+  raw data (mean 0.546 women vs 0.407 men) and by region — and actual default rates differ the same
+  direction (women 7.0% vs men 10.1%), so part of the gap is the model correctly learning a real
+  base-rate difference, not fabricating one.
+- Isolated the part NOT explained by real risk difference via equalized-odds gap (conditions on
+  actual outcome): still substantial, 0.0344 gender / 0.0775 region.
+- Mitigation tested (no retraining — reused saved artifacts): per-group decline thresholds
+  equalizing each group's TPR-on-good-borrowers to the population rate. Cut both gaps ~77% for
+  under 1.5 points of overall recall. Validated finding, not yet wired into production scoring.
+
+### Model promotion path — decided and made configurable, not hardcoded
+- `api/app.py` now reads `settings.model_dir` (env `CREDIT_MODEL_DIR`) instead of a hardcoded path.
+  `models/` (synthetic) stays default to protect the existing synthetic-calibration regression test;
+  `models_real/` (7-feat, honest, self-reportable) is the intended public API / consumer-page model;
+  `models_real_rich/` (38-feat, needs bureau/EXT_SOURCE data) is internal-loan-officer-only, since a
+  new self-service applicant can't supply those fields themselves.
+
+### Phase 2 — loan-officer dashboard at /officer
+- Single-applicant scoring (form + 12-month payment grid + decision panel with gauge/why-list/
+  pricing/actions) and CSV batch (drag-drop, validation, summary tiles, sortable table with
+  per-row drill-down), per docs/specs/dashboard-ux.md. New backend `/score` + `/score/batch`
+  reusing scoring.py's decision logic, different response shape.
+- Verified with real Playwright (not just typecheck) against the live dev servers — found and fixed
+  two real bugs this way: the gauge's "breakeven" tick label overlapped the zone labels below it,
+  and the batch summary's band histogram always highlighted band E instead of the tallest bar.
+
+### Phase 3 — consumer self-assessment page at /advisor
+- Manual entry + CSV upload converging on one Profile payload; warm band framing (thriving/steady/
+  almost/building/starting — never "reject"/"denied"); new `api/advice_engine.py` with an offer-
+  pricing formula, WHY factors, and an advice/goal engine that RE-SCORES real what-if profiles
+  through the actual model (on-time streaks, debt paydown, limit increase) rather than estimating
+  deltas — every number shown to the user came from a real forward pass, verified by hand: ontime
+  3/6/12-month scenarios differentiate correctly on the real model (0.127->0.121->0.090->0.058)
+  even though the bundled synthetic demo model was flat at one specific test point (a genuine model
+  characteristic, confirmed by direct comparison, not a code bug).
+
+### Phase 4 — hard-override policy layer
+- `scoring.check_hard_override()` force-declines three extreme/unambiguous cases regardless of
+  model output: severe recent delinquency (3+ months at 6+ months past due in the trailing 6),
+  debt > 3x annual income, and an implausible credit-limit-to-income ratio. Wired into all three
+  serving surfaces so the guard applies everywhere, not just one endpoint. Both frontends surface
+  the override reason transparently rather than silently overriding.
+- Caught a real test-scenario bug during Playwright verification (not a code bug): placed severe
+  lateness in the middle of a 12-month array instead of the trailing 6-month window the check
+  actually examines — confirmed by moving it into the recent window and re-testing.
+
+### Phase 5 — model registry
+- `src/build_model_registry.py` catalogs every trained model directory into `model_registry.json`:
+  data source, metrics, fairness gaps, and a sha256 **fingerprint of the actual trained artifact
+  files** (not the raw data) — changes iff the model itself changed. `GET /` now reports the
+  fingerprint/commit of whatever's currently loaded; new `GET /model-registry` returns the full
+  catalog. Answers "what is this API serving right now and how was it built" without tribal
+  knowledge.
+
+### Process note
+Every phase was lint-checked (ruff + oxlint), test-checked (pytest, 54/54 passing by the end,
+tsc -b clean), and — for the two UI phases — actually exercised in a real headless Chromium via
+Playwright (installed mid-session since the Claude-in-Chrome extension wasn't connected), not just
+type-checked. That's how both real UI bugs above were caught. Every phase committed and pushed to
+GitHub individually rather than batched at the end.
+
+### Next: the fairness mitigation (per-group thresholds) is validated but not yet wired into
+production scoring — that's the highest-leverage remaining reliability gap. After that: self-serve
+API-key sign-up (spec not yet written) and deciding whether/how to combine gender+region group
+thresholds (tested independently so far, not simultaneously).
