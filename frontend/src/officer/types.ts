@@ -35,6 +35,7 @@ export interface ScoreResult {
   verdict: Verdict
   factors: Factor[]
   pricing: Pricing
+  override_reason: string | null
 }
 
 export interface BatchRow extends ScoreResult {

@@ -33,6 +33,42 @@ DEFAULT_TENURE_MONTHS = 36
 # threshold ratio: (1+C) / (1+C*(1-recovery))
 SECURED_THRESHOLD_MULTIPLIER = (1 + COST_RATIO) / (1 + COST_RATIO * (1 - RECOVERY_RATE))
 
+# --- hard overrides: extreme/unambiguous cases force-declined regardless of model output ---
+# The model is trained on the population it saw; these guard the cases no reasonable underwriter
+# would approve on the model's say-so alone, or where the model is extrapolating past its training
+# distribution rather than making a real judgment. Kept as a short, named, auditable list -- not
+# a dumping ground for tuning the model's normal decisions (that's what the cost-based threshold
+# in `decide` is for).
+SEVERE_DELINQUENCY_WINDOW = 6      # trailing months examined
+SEVERE_DELINQUENCY_STATUS = 6      # >= this many months past due counts as "severe"
+SEVERE_DELINQUENCY_COUNT = 3       # this many severe months in the window forces decline
+MAX_SANE_DTI = 3.0                 # existing debt > 3x annual income: unserviceable at any rate
+MAX_CREDIT_LIMIT_TO_INCOME = 60    # requested limit > 60x monthly income: likely bad input/extrapolation
+
+HARD_OVERRIDE_REASONS = {
+    "severe_recent_delinquency": (
+        f"{SEVERE_DELINQUENCY_COUNT}+ months at {SEVERE_DELINQUENCY_STATUS}+ months past due in "
+        f"the last {SEVERE_DELINQUENCY_WINDOW} months"
+    ),
+    "extreme_debt_to_income": f"existing debt exceeds {MAX_SANE_DTI:.0f}x annual income",
+    "credit_limit_implausible": f"requested limit exceeds {MAX_CREDIT_LIMIT_TO_INCOME}x monthly income",
+}
+
+
+def check_hard_override(monthly_income: float, existing_debt: float, credit_limit: float,
+                        payment_history: list[float]) -> str | None:
+    """Returns a HARD_OVERRIDE_REASONS key if this case should be force-declined ahead of the
+    model, else None. Checked in addition to (never instead of) the model's own decision."""
+    recent = payment_history[-SEVERE_DELINQUENCY_WINDOW:]
+    if sum(1 for v in recent if v >= SEVERE_DELINQUENCY_STATUS) >= SEVERE_DELINQUENCY_COUNT:
+        return "severe_recent_delinquency"
+    dti = existing_debt / (monthly_income * 12 + 1)
+    if dti > MAX_SANE_DTI:
+        return "extreme_debt_to_income"
+    if credit_limit > MAX_CREDIT_LIMIT_TO_INCOME * monthly_income:
+        return "credit_limit_implausible"
+    return None
+
 
 def build_static_row(static_cols: list[str], age, monthly_income, credit_limit,
                      existing_debt, employment_years, num_existing_loans) -> np.ndarray:

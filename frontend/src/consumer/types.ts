@@ -68,6 +68,7 @@ export interface AssessResponse {
   why: WhyFactor[]
   advice: Advice[]
   goal: Goal
+  note: string | null
 }
 
 export type PageState = 'idle' | 'editing' | 'submitting' | 'results' | 'error'

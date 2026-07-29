@@ -189,6 +189,7 @@ class AssessmentResponse(BaseModel):
     pricing: Pricing
     advice: list[Advice]
     model_version: str
+    override_reason: str | None = None
 
 
 class BatchRequest(BaseModel):
@@ -213,6 +214,11 @@ def _score(a: Applicant) -> AssessmentResponse:
 
     decision, approve_t, decline_t = scoring.decide(cfg, pd_, a.has_collateral)
 
+    override_reason = scoring.check_hard_override(
+        a.monthly_income, a.existing_debt, a.credit_limit, [float(v) for v in a.pay_status])
+    if override_reason:
+        decision = "decline"
+
     why = scoring.explain(cfg, xgb, static_cols, static_row, xgb_score, net, seq_std)
 
     pricing = scoring.price_loan(pd_, a.monthly_income, a.existing_debt, a.credit_limit,
@@ -222,8 +228,8 @@ def _score(a: Applicant) -> AssessmentResponse:
                             a.existing_debt, a.employment_years, a.num_existing_loans,
                             [float(v) for v in a.pay_status], net, pd_)
 
-    audit.info("decision pd=%.4f recommendation=%s collateral=%s model=%s",
-              pd_, decision, a.has_collateral, settings.app_version)
+    audit.info("decision pd=%.4f recommendation=%s collateral=%s override=%s model=%s",
+              pd_, decision, a.has_collateral, override_reason, settings.app_version)
 
     return AssessmentResponse(
         probability_of_default=round(pd_, 4),
@@ -234,6 +240,7 @@ def _score(a: Applicant) -> AssessmentResponse:
         pricing=Pricing(**pricing),
         advice=[Advice(**adv) for adv in advice],
         model_version=settings.app_version,
+        override_reason=scoring.HARD_OVERRIDE_REASONS.get(override_reason) if override_reason else None,
     )
 
 
@@ -307,6 +314,7 @@ class OfficerScoreResult(BaseModel):
     verdict: str
     factors: list[OfficerFactor]
     pricing: OfficerPricing
+    override_reason: str | None = None
 
 
 class OfficerBatchRow(OfficerScoreResult):
@@ -368,6 +376,11 @@ def _score_officer(a: OfficerApplicantInput) -> OfficerScoreResult:
 
     decision, _approve_t, _decline_t = scoring.decide(cfg, pd_)
 
+    override_reason = scoring.check_hard_override(
+        a.monthly_income, a.existing_debt, a.credit_limit, [float(v) for v in a.payment_history])
+    if override_reason:
+        decision = "decline"
+
     raw_factors = scoring.explain(cfg, xgb, static_cols, static_row, xgb_score, net, seq_std)
     total = sum(abs(f["impact"]) for f in raw_factors) or 1.0
     factors = [
@@ -385,7 +398,8 @@ def _score_officer(a: OfficerApplicantInput) -> OfficerScoreResult:
     pricing = scoring.price_loan(pd_, a.monthly_income, a.existing_debt, a.credit_limit,
                                  decision, tenure_months=OFFICER_TENOR_MONTHS)
 
-    audit.info("officer decision pd=%.4f verdict=%s model=%s", pd_, decision, settings.app_version)
+    audit.info("officer decision pd=%.4f verdict=%s override=%s model=%s",
+              pd_, decision, override_reason, settings.app_version)
 
     return OfficerScoreResult(
         pd=round(pd_, 4), band=scoring.band(pd_), verdict=decision, factors=factors,
@@ -395,6 +409,7 @@ def _score_officer(a: OfficerApplicantInput) -> OfficerScoreResult:
             emi=pricing["monthly_emi"],
             tenor_months=pricing["tenure_months"],
         ),
+        override_reason=scoring.HARD_OVERRIDE_REASONS.get(override_reason) if override_reason else None,
     )
 
 
@@ -505,6 +520,7 @@ class AssessResponse(BaseModel):
     why: list[ConsumerWhyFactor]
     advice: list[ConsumerAdvice]
     goal: ConsumerGoal
+    note: str | None = None
 
 
 @app.post("/self-assessment", response_model=AssessResponse, tags=["consumer"])
@@ -521,7 +537,16 @@ def self_assessment(request: Request, body: SelfAssessmentRequest, _key: ApiKey)
     advice_items = advice_engine.build_advice(cfg, xgb, net, profile, pd_, threshold)
     goal = advice_engine.build_goal(cfg, xgb, net, profile, advice_items, pd_, threshold)
 
-    audit.info("self-assessment pd=%.4f band=%s model=%s", pd_, band_name, settings.app_version)
+    override_reason = scoring.check_hard_override(
+        profile["monthly_income"], profile["existing_debt"], profile["credit_limit"],
+        [float(v) for v in profile["payment_history"]])
+    note = None
+    if override_reason:
+        offer_now = {**offer_now, "qualifies": False, "secured": True}
+        note = "This profile needs a closer, manual look before any offer is final."
+
+    audit.info("self-assessment pd=%.4f band=%s override=%s model=%s",
+              pd_, band_name, override_reason, settings.app_version)
 
     return AssessResponse(
         pd=round(pd_, 4), band=band_name, band_headline=headline, threshold=round(threshold, 4),
@@ -529,4 +554,5 @@ def self_assessment(request: Request, body: SelfAssessmentRequest, _key: ApiKey)
         why=[ConsumerWhyFactor(**w) for w in why],
         advice=[ConsumerAdvice(**{k: v for k, v in a.items() if k != "_mutate"}) for a in advice_items],
         goal=ConsumerGoal(**goal),
+        note=note,
     )

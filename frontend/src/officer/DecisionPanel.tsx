@@ -33,6 +33,11 @@ function VerdictHeader({ result }: { result: ScoreResult }) {
         <div className={`mt-1 font-display text-3xl italic ${result.verdict === 'decline' ? 'text-ink line-through decoration-1' : result.verdict === 'review' ? 'text-ink' : 'text-accent'}`}>
           {VERDICT_LABEL[result.verdict]}
         </div>
+        {result.override_reason && (
+          <p className="mt-2 max-w-sm border-l-2 border-accent pl-3 text-xs text-ink/70">
+            Policy override: {result.override_reason}.
+          </p>
+        )}
       </div>
     </div>
   )

@@ -103,3 +103,41 @@ def test_no_protected_attributes_in_static_cols(loaded):
     cfg, _, _ = loaded
     forbidden = {"sex", "gender", "marriage", "education", "SEX", "EDUCATION", "MARRIAGE"}
     assert not (forbidden & set(cfg["static_cols"]))
+
+
+# --- hard override: extreme/unambiguous cases forced regardless of model output ---
+
+HEALTHY_HISTORY = [0] * 12
+
+
+def test_hard_override_none_for_healthy_profile():
+    assert scoring.check_hard_override(80000, 40000, 400000, HEALTHY_HISTORY) is None
+
+
+def test_hard_override_severe_recent_delinquency():
+    severely_late = [0, 0, 0, 6, 7, 8, 9, 9, 9, 0, 0, 0]  # 6 months in the trailing window >= 6
+    reason = scoring.check_hard_override(80000, 40000, 400000, severely_late)
+    assert reason == "severe_recent_delinquency"
+
+
+def test_hard_override_needs_the_full_count_in_window():
+    """Only 2 severe months in the trailing window -- below the count threshold, no override."""
+    borderline = [0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 7, 0]
+    assert scoring.check_hard_override(80000, 40000, 400000, borderline) is None
+
+
+def test_hard_override_extreme_debt_to_income():
+    # existing debt way beyond 3x annual income, otherwise a plain-looking application
+    reason = scoring.check_hard_override(30000, 2_000_000, 100000, HEALTHY_HISTORY)
+    assert reason == "extreme_debt_to_income"
+
+
+def test_hard_override_credit_limit_implausible():
+    reason = scoring.check_hard_override(20000, 10000, 5_000_000, HEALTHY_HISTORY)
+    assert reason == "credit_limit_implausible"
+
+
+def test_hard_override_reasons_are_human_readable():
+    for key in ("severe_recent_delinquency", "extreme_debt_to_income", "credit_limit_implausible"):
+        assert key in scoring.HARD_OVERRIDE_REASONS
+        assert len(scoring.HARD_OVERRIDE_REASONS[key]) > 10

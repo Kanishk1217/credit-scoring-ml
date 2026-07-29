@@ -219,3 +219,35 @@ def test_self_assessment_goal_reaches_or_admits_unreachable(client):
         assert goal["projected_pd"] <= goal["target_pd"]
     else:
         assert goal["projected_offer"] is not None
+
+
+# --- hard override, checked end-to-end through all three serving surfaces ---
+
+SEVERELY_DELINQUENT_HISTORY = [0, 0, 0, 6, 7, 8, 9, 9, 9, 0, 0, 0]  # 6 severe months in the window
+
+
+def test_predict_forces_decline_on_severe_delinquency(client):
+    """Otherwise-healthy financials, but severe recent delinquency must still force a decline."""
+    applicant = {**HEALTHY, "pay_status": SEVERELY_DELINQUENT_HISTORY}
+    r = client.post("/predict", json=applicant, headers=KEY).json()
+    assert r["recommendation"] == "decline"
+    assert r["override_reason"] is not None
+
+
+def test_predict_no_override_on_healthy_profile(client):
+    r = client.post("/predict", json=HEALTHY, headers=KEY).json()
+    assert r["override_reason"] is None
+
+
+def test_score_officer_forces_decline_on_extreme_dti(client):
+    applicant = {**OFFICER_HEALTHY, "existing_debt": 5_000_000}
+    r = client.post("/score", json=applicant, headers=KEY).json()
+    assert r["verdict"] == "decline"
+    assert r["override_reason"] is not None
+
+
+def test_self_assessment_note_on_implausible_credit_limit(client):
+    profile = {**CONSUMER_PROFILE, "credit_limit": 10_000_000}
+    r = client.post("/self-assessment", json={"profile": profile}, headers=KEY).json()
+    assert r["note"] is not None
+    assert r["offer_now"]["qualifies"] is False

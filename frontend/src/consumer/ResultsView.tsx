@@ -181,6 +181,9 @@ export default function ResultsView({ data, onEdit, onStartOver }: Props) {
   return (
     <div className="flex flex-col gap-8">
       <RiskReadCard data={data} />
+      {data.note && (
+        <p className="border-l-2 border-accent pl-3 text-sm text-ink/70">{data.note}</p>
+      )}
       <OfferCompare data={data} />
       <WhyFactors data={data} />
       <AdviceList data={data} />
