@@ -1,10 +1,15 @@
 """Hardened FastAPI service for the hybrid credit-scoring model.
 
+Model: XGBoost (static features) + LSTM (12-month payment sequence), fused, then ISOTONIC
+CALIBRATED so the output is a real probability of default, not just a ranking. Decisions use
+COST-BASED thresholds (fit on held-out data) instead of an arbitrary 0.5 cutoff. No protected
+attributes (sex/marriage/education) are used for scoring.
+
 Production concerns covered here:
 - API-key auth (constant-time compare), per-key rate limiting
 - strict input validation, locked-down CORS, security headers
 - request-ID + latency logging, and an audit log of every credit decision
-- single and batch scoring
+- single and batch scoring, explainability (why), pricing, and improvement advice
 - non-leaking error handling; secrets from env only
 
 Run locally:
@@ -26,7 +31,6 @@ from pathlib import Path
 from typing import Annotated
 
 import joblib
-import numpy as np
 import xgboost  # noqa: F401  (needed to unpickle the saved XGBoost model)
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +41,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from api import scoring
 from api.config import settings
 from api.infer_numpy import NumpyHybrid
 
@@ -56,7 +61,8 @@ async def lifespan(app: FastAPI):
     STATE["net"] = NumpyHybrid(ROOT / "models" / "hybrid_fusion.npz", STATE["cfg"]["lstm_hidden"])
     if not settings.api_key_set:
         logger.warning("No API keys configured (CREDIT_API_KEYS). Scoring endpoints will return 503.")
-    logger.info("models loaded; %d API key(s) configured", len(settings.api_key_set))
+    logger.info("models loaded; %d API key(s) configured; test AUC=%s",
+                len(settings.api_key_set), STATE["cfg"].get("metrics", {}).get("test_auc"))
     yield
     STATE.clear()
 
@@ -128,15 +134,20 @@ ApiKey = Annotated[str, Depends(require_api_key)]
 
 
 class Applicant(BaseModel):
-    limit_bal: float = Field(..., ge=0, le=1e9, examples=[200000])
-    sex: int = Field(..., ge=1, le=2, examples=[2])
-    education: int = Field(..., ge=0, le=6, examples=[2])
-    marriage: int = Field(..., ge=0, le=3, examples=[1])
-    age: int = Field(..., ge=18, le=120, examples=[35])
-    bill_amt: list[float] = Field(..., min_length=6, max_length=6)
-    pay_amt: list[float] = Field(..., min_length=6, max_length=6)
-    pay_status: list[int] = Field(..., min_length=6, max_length=6,
-                                  description="Apr->Sep; <=0 on time, 1..9 months late")
+    """No sex/marriage/education fields — those are protected attributes and are never scored.
+    extra="forbid" so a client literally cannot smuggle a protected attribute into the request."""
+    model_config = {"extra": "forbid"}
+
+    age: int = Field(..., ge=18, le=100, examples=[34])
+    monthly_income: float = Field(..., gt=0, le=1e8, examples=[45000])
+    credit_limit: float = Field(..., ge=0, le=1e9, examples=[300000])
+    existing_debt: float = Field(..., ge=0, le=1e9, examples=[80000])
+    employment_years: float = Field(..., ge=0, le=60, examples=[5.0])
+    num_existing_loans: int = Field(..., ge=0, le=50, examples=[2])
+    pay_status: list[int] = Field(..., min_length=12, max_length=12,
+                                  description="12 months, oldest to newest; <=0 on time, 1..9 months late")
+    has_collateral: bool = Field(False, description="secured loan — improves rate and approval cutoff")
+    requested_amount: float | None = Field(None, ge=0, le=1e9)
 
     @field_validator("pay_status")
     @classmethod
@@ -145,17 +156,36 @@ class Applicant(BaseModel):
             raise ValueError("pay_status values must be between -2 and 9")
         return v
 
-    @field_validator("bill_amt", "pay_amt")
-    @classmethod
-    def _amount_sane(cls, v: list[float]) -> list[float]:
-        if any(abs(x) > 1e9 for x in v):
-            raise ValueError("amounts out of range")
-        return v
+
+class Factor(BaseModel):
+    factor: str
+    impact: float
+    direction: str
 
 
-class PredictionResponse(BaseModel):
+class Advice(BaseModel):
+    scenario: str
+    current_pd: float
+    projected_pd: float
+    pd_improvement: float
+
+
+class Pricing(BaseModel):
+    max_loan_amount: int
+    interest_rate_pct: float
+    tenure_months: int
+    monthly_emi: int
+    note: str
+
+
+class AssessmentResponse(BaseModel):
     probability_of_default: float
     recommendation: str
+    approve_threshold: float
+    decline_threshold: float
+    why: list[Factor]
+    pricing: Pricing
+    advice: list[Advice]
     model_version: str
 
 
@@ -164,30 +194,55 @@ class BatchRequest(BaseModel):
 
 
 class BatchResponse(BaseModel):
-    results: list[PredictionResponse]
+    results: list[AssessmentResponse]
     count: int
 
 
-def _score(a: Applicant) -> PredictionResponse:
+def _score(a: Applicant) -> AssessmentResponse:
     cfg, xgb, net = STATE["cfg"], STATE["xgb"], STATE["net"]
-    static = np.array([[a.limit_bal, a.sex, a.education, a.marriage, a.age,
-                        *a.bill_amt, *a.pay_amt]], dtype="float32")
-    score = float(xgb.predict_proba(static)[0, 1])                       # XGBoost static branch
-    seq = [(float(v) - cfg["seq_mean"]) / cfg["seq_std"] for v in a.pay_status]
-    pd_ = net.predict(seq, score)                                       # NumPy LSTM + fusion
-    rec = "decline" if pd_ >= 0.5 else "review" if pd_ >= 0.2 else "approve"
-    audit.info("decision pd=%.4f recommendation=%s model=%s", pd_, rec, settings.app_version)
-    return PredictionResponse(probability_of_default=round(pd_, 4), recommendation=rec,
-                              model_version=settings.app_version)
+    static_cols = cfg["static_cols"]
+
+    static_row = scoring.build_static_row(static_cols, a.age, a.monthly_income, a.credit_limit,
+                                          a.existing_debt, a.employment_years, a.num_existing_loans)
+    xgb_score = float(xgb.predict_proba(static_row)[0, 1])
+    seq_std = [(float(v) - cfg["seq_mean"]) / cfg["seq_std"] for v in a.pay_status]
+    raw_pd = net.predict(seq_std, xgb_score)
+    pd_ = scoring.calibrate(cfg, raw_pd)
+
+    decision, approve_t, decline_t = scoring.decide(cfg, pd_, a.has_collateral)
+
+    why = scoring.explain(cfg, xgb, static_cols, static_row, xgb_score, net, seq_std)
+
+    pricing = scoring.price_loan(pd_, a.monthly_income, a.existing_debt, a.credit_limit,
+                                 decision, a.has_collateral, a.requested_amount)
+
+    advice = scoring.advice(cfg, xgb, static_cols, a.age, a.monthly_income, a.credit_limit,
+                            a.existing_debt, a.employment_years, a.num_existing_loans,
+                            [float(v) for v in a.pay_status], net, pd_)
+
+    audit.info("decision pd=%.4f recommendation=%s collateral=%s model=%s",
+              pd_, decision, a.has_collateral, settings.app_version)
+
+    return AssessmentResponse(
+        probability_of_default=round(pd_, 4),
+        recommendation=decision,
+        approve_threshold=round(approve_t, 4),
+        decline_threshold=round(decline_t, 4),
+        why=[Factor(**f) for f in why],
+        pricing=Pricing(**pricing),
+        advice=[Advice(**adv) for adv in advice],
+        model_version=settings.app_version,
+    )
 
 
 @app.get("/", tags=["health"])
 def health():
-    return {"status": "ok", "model": "hybrid XGBoost + LSTM",
-            "version": settings.app_version, "models_loaded": bool(STATE)}
+    return {"status": "ok", "model": "hybrid XGBoost + LSTM (calibrated)",
+            "version": settings.app_version, "models_loaded": bool(STATE),
+            "test_auc": STATE.get("cfg", {}).get("metrics", {}).get("test_auc")}
 
 
-@app.post("/predict", response_model=PredictionResponse, tags=["scoring"])
+@app.post("/predict", response_model=AssessmentResponse, tags=["scoring"])
 @limiter.limit(settings.rate_limit)
 def predict(request: Request, applicant: Applicant, _key: ApiKey):
     return _score(applicant)

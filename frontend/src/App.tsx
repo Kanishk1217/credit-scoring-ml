@@ -236,7 +236,7 @@ function Caps() {
 }
 
 function Output() {
-  const factors = [['Recent 2-month payment delay', '↑'], ['Rising bill-to-limit ratio', '↑'], ['Stable credit limit', '↓']]
+  const factors = [['Recent payment history', '↑'], ['Debt-to-income ratio', '↑'], ['Employment history', '↓']]
   return (
     <section id="output" className="border-t border-line">
       <div className="mx-auto grid max-w-[1240px] gap-16 px-6 py-24 md:grid-cols-2 md:items-center md:px-10 md:py-36">

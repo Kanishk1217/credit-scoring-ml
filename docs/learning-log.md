@@ -498,3 +498,72 @@ explainability -> API + frontend 4. Fairness audit 5. Drift monitoring (PSI) + r
 
 ### Next: stage 2 — config-driven training pipeline (data -> features -> hybrid -> calibrate ->
 version), runnable on sim data now and real data later by swapping the loader.
+
+---
+
+## Session 14 — 2026-07-29 — Model reliability fix: calibration, protected attrs, fairness audit
+
+User pasted a review of the DEPLOYED (Taiwan) model flagging: protected attributes scored (sex/
+education/marriage — illegal for real lending), no calibration, thin data (30k/6mo), no explanations.
+User: "why is model accuracy only 47%... data is very imbalanced... understand everything and make
+this model more reliable." Investigated directly rather than guessing.
+
+### The real bug, proven on the deployed model (held-out test set)
+- Actual default rate 22.1%, but MEAN PREDICTED PD was 43.4% — ~2x inflated. Root cause:
+  `scale_pos_weight` (used to fight class imbalance during training) systematically inflates
+  probabilities, and the deployed model was never recalibrated afterward (we'd taught this exact
+  failure mode as a lesson back in Session 6 but never applied the fix to what was actually live).
+- Using the shipped hardcoded thresholds (decline>=.5, review>=.2): 91% of ALL applicants got
+  flagged (8.7% approve / 61.8% review / 29.5% decline) despite true default rate being 22%.
+  AUC itself was fine (0.776) — ranking wasn't the problem, the raw probabilities were.
+- User decisions (confirmed): KEEP age as a feature (legal, predictive, will be fairness-audited);
+  do NOT use SMOTE/resampling (breaks calibration, doesn't help AUC — class weights + calibration +
+  cost-based thresholds is the correct fix); cost ratio 5:1 (approving a defaulter judged 5x worse
+  than declining a good customer).
+
+### What we built (full rewrite of the served model + API)
+- **src/train_synth_model.py**: single pipeline — 150k synthetic rows (12mo, no protected attrs) ->
+  4-way split (train/val/cal/test) -> XGBoost (OOF scores, no leakage) -> LSTM+fusion (PyTorch,
+  training only) -> **isotonic calibration fit on `cal`** -> **cost-based thresholds (5:1) fit on
+  `cal`** -> **fairness audit on `test`** (gender/region, held out of scoring) -> torch-free export
+  (NumPy weights, verified match to 1.19e-07) -> honest metrics/thresholds/fairness saved into
+  hybrid_config.json.
+- **Result: AUC 0.775 -> 0.892** (bigger, richer data). Calibration: mean predicted PD 34.9% ->
+  **22.0%** (actual 22.4%) — reliability table matches within a few points at every decile (was 2x
+  off before). Decision mix at cost-optimal thresholds: 45.7% approve / 15.1% review / 39.2% decline
+  (sane, vs old 8.7%/61.8%/29.5%).
+- **Fairness audit**: gender demographic-parity gap 0.000, region gap 0.015 — both near zero.
+  Documented honestly: this is EXPECTED on synthetic data (generator doesn't make gender/region
+  causally affect risk) — proves the audit methodology works, not a real-population guarantee.
+- **api/scoring.py** (new module, pure functions, business logic separated from routing):
+  `calibrate()` (np.interp over the isotonic grid), `decide()` (cost-based thresholds, collateral
+  widens the decline cutoff via the Bayes-optimal ratio (1+C)/(1+C*(1-recovery))), `explain()`
+  (XGBoost `pred_contribs` SHAP for static features, converted to probability-space via the local
+  sigmoid derivative p*(1-p); payment-history counterfactual for the sequence branch — actual vs
+  all-on-time), `price_loan()` (risk-based rate + affordability-capped amount, collateral improves
+  terms), `advice()` (re-scores what-if scenarios: 6mo on-time, debt -25%/-50%, income +20%, ranked
+  by PD improvement).
+- **api/app.py**: new `Applicant` schema — age, monthly_income, credit_limit, existing_debt,
+  employment_years, num_existing_loans, pay_status (12 months), has_collateral, requested_amount.
+  **`model_config = {"extra": "forbid"}`** — protected attributes are structurally impossible to
+  submit, not just unused. `/predict` and `/predict/batch` now return probability_of_default,
+  recommendation, approve/decline_threshold, why (ranked factors), pricing, advice.
+- **frontend/src/LiveDemo.tsx**: rebuilt for 12 months (was 6), new fields, added a collateral
+  toggle that shows the pricing engine live (rate/amount change in the demo).
+- **Verified end to end**: risky applicant (escalating lateness, high DTI) -> PD 96.6%, decline,
+  top factor "Recent payment history"; healthy applicant -> PD 0.9%, approve, offer ₹400k @ 11.37%;
+  collateral confirmed to flip decisions in the borderline PD window (0.095: review -> approve) and
+  never worsen terms.
+- **Tests**: tests/test_scoring.py (new, unit tests on scoring.py incl. a regression test that
+  calibration must shrink the gap to true default rate on fresh held-out data — guards against this
+  exact bug recurring) + tests/test_api.py rewritten for new schema (healthy-vs-risky ordering,
+  calibration sanity, collateral never hurts, advice always improves PD, protected attrs rejected
+  with 422). 22/22 tests pass, ruff clean.
+- Cleaned up stale models/hybrid_fusion.pt (old Taiwan torch artifact, no longer produced).
+- Recovered 4 of 7 design specs (pricing-engine, dashboard-ux, consumer-ux, advice-engine) from a
+  workflow that hit an org spend limit mid-run; saved to docs/specs/ for the next phase (3 specs —
+  explainability, provisioning, frontend-arch — did not complete and were designed fresh here instead
+  where needed).
+
+### Next: the paused feature build — loan-officer dashboard, consumer self-assessment page, and
+self-serve API-key sign-up (specs cached in docs/specs/). Model reliability work is done and tested.

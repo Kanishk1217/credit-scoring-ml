@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const MONTHS = ['apr', 'may', 'jun', 'jul', 'aug', 'sep']
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 const STATES = [
   { v: 0, label: 'on time', color: 'var(--color-success)' },
   { v: 1, label: '1mo late', color: 'var(--color-warning)' },
   { v: 2, label: '2mo late', color: 'var(--color-danger)' },
 ]
-type Result = { probability_of_default: number; recommendation: string }
+type Pricing = { max_loan_amount: number; interest_rate_pct: number }
+type Result = { probability_of_default: number; recommendation: string; pricing: Pricing }
 const REC = {
   approve: { color: 'var(--color-success)', label: 'approve' },
   review: { color: 'var(--color-warning)', label: 'review' },
@@ -14,8 +15,9 @@ const REC = {
 } as const
 
 export default function LiveDemo() {
-  const [seq, setSeq] = useState<number[]>([0, 0, 0, 0, 2, 2])
-  const [limit, setLimit] = useState(120000)
+  const [seq, setSeq] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2])
+  const [limit, setLimit] = useState(300000)
+  const [collateral, setCollateral] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -28,15 +30,14 @@ export default function LiveDemo() {
       const res = await fetch('/api/predict', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          limit_bal: limit, sex: 2, education: 2, marriage: 1, age: 34,
-          bill_amt: [80000, 80000, 80000, 80000, 80000, 80000],
-          pay_amt: [3000, 3000, 3000, 3000, 3000, 3000], pay_status: seq,
+          age: 34, monthly_income: 45000, credit_limit: limit, existing_debt: 80000,
+          employment_years: 4, num_existing_loans: 2, pay_status: seq, has_collateral: collateral,
         }),
       })
       if (!res.ok) throw new Error(String(res.status))
       setResult(await res.json())
     } catch { setError(true); setResult(null) } finally { setLoading(false) }
-  }, [seq, limit])
+  }, [seq, limit, collateral])
 
   useEffect(() => { const t = setTimeout(score, 300); return () => clearTimeout(t) }, [score])
 
@@ -54,31 +55,36 @@ export default function LiveDemo() {
       </div>
 
       <div className="px-6 py-6">
-        <p className="mb-4 text-sm text-muted">Tap a month to change its payment status.</p>
+        <p className="mb-4 text-sm text-muted">12 months of payment history — tap a month to change it.</p>
         <div className="grid grid-cols-6 border border-line">
           {seq.map((v, i) => {
             const st = STATES.find((s) => s.v === v) ?? STATES[0]
             return (
               <button key={i} onClick={() => cycle(i)}
-                className="group flex cursor-pointer flex-col items-center gap-2.5 border-r border-line py-4 transition-colors last:border-r-0 hover:bg-bg"
+                className="group flex cursor-pointer flex-col items-center gap-2 border-b border-r border-line py-3 transition-colors last:border-r-0 hover:bg-bg [&:nth-child(6)]:border-r-0"
                 aria-label={`${MONTHS[i]}: ${st.label}`}>
-                <span className="font-label text-[11px] uppercase tracking-wider text-faint">{MONTHS[i]}</span>
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: st.color }} />
-                <span className="text-[10px] text-muted">{st.label}</span>
+                <span className="font-label text-[10px] uppercase tracking-wider text-faint">{MONTHS[i]}</span>
+                <span className="h-2 w-2 rounded-full" style={{ background: st.color }} />
               </button>
             )
           })}
         </div>
 
-        <div className="mt-6 mb-6">
+        <div className="mt-6 mb-4">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="text-muted">Credit limit</span>
             <span className="font-display font-500 tabular-nums text-ink">₹{limit.toLocaleString('en-IN')}</span>
           </div>
-          <input type="range" min={20000} max={500000} step={10000} value={limit}
+          <input type="range" min={50000} max={800000} step={10000} value={limit}
                  onChange={(e) => setLimit(Number(e.target.value))}
                  className="w-full accent-[var(--color-accent)]" />
         </div>
+
+        <label className="mb-6 flex cursor-pointer items-center justify-between text-sm">
+          <span className="text-muted">Secured with collateral</span>
+          <input type="checkbox" checked={collateral} onChange={(e) => setCollateral(e.target.checked)}
+                 className="h-4 w-4 accent-[var(--color-accent)]" />
+        </label>
 
         <div className="border-t border-line pt-6">
           {error ? (
@@ -97,6 +103,12 @@ export default function LiveDemo() {
               <div className="mt-4 h-px w-full bg-line">
                 <div className="h-px transition-all duration-500" style={{ width: `${Math.min(pd * 100, 100)}%`, background: rec?.color ?? 'var(--color-ink)', opacity: loading ? 0.4 : 1 }} />
               </div>
+              {result && result.pricing.max_loan_amount > 0 && (
+                <div className="mt-5 flex items-center justify-between text-sm">
+                  <span className="text-muted">Offer: ₹{result.pricing.max_loan_amount.toLocaleString('en-IN')} at</span>
+                  <span className="font-display font-600 text-ink">{result.pricing.interest_rate_pct}%</span>
+                </div>
+              )}
             </>
           )}
         </div>

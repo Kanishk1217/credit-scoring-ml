@@ -1,4 +1,6 @@
-"""API tests: auth, validation, scoring, and batch. Run: uv run pytest -q"""
+"""API tests: auth, validation, scoring, calibration sanity, fairness contract, and batch.
+Run: uv run pytest -q
+"""
 import os
 
 # configure the app BEFORE importing it (env vars beat .env)
@@ -11,11 +13,16 @@ from fastapi.testclient import TestClient
 from api.app import app
 
 KEY = {"X-API-Key": "testkey123"}
-APPLICANT = {
-    "limit_bal": 120000, "sex": 2, "education": 2, "marriage": 1, "age": 30,
-    "bill_amt": [80000, 82000, 85000, 88000, 90000, 92000],
-    "pay_amt": [3000, 3000, 2500, 2000, 1500, 1000],
-    "pay_status": [0, 0, -1, -1, 2, 2],
+
+HEALTHY = {
+    "age": 45, "monthly_income": 80000, "credit_limit": 400000, "existing_debt": 40000,
+    "employment_years": 12.0, "num_existing_loans": 1,
+    "pay_status": [-1] * 12, "has_collateral": False,
+}
+RISKY = {
+    "age": 29, "monthly_income": 30000, "credit_limit": 150000, "existing_debt": 120000,
+    "employment_years": 1.5, "num_existing_loans": 4,
+    "pay_status": [0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3], "has_collateral": False,
 }
 
 
@@ -28,31 +35,84 @@ def client():
 def test_health(client):
     r = client.get("/")
     assert r.status_code == 200 and r.json()["status"] == "ok"
+    assert r.json()["test_auc"] > 0.85   # the calibrated hybrid model, not the old uncalibrated one
 
 
 def test_predict_requires_key(client):
-    assert client.post("/predict", json=APPLICANT).status_code == 401
+    assert client.post("/predict", json=HEALTHY).status_code == 401
 
 
 def test_predict_rejects_wrong_key(client):
-    assert client.post("/predict", json=APPLICANT, headers={"X-API-Key": "nope"}).status_code == 401
+    assert client.post("/predict", json=HEALTHY, headers={"X-API-Key": "nope"}).status_code == 401
 
 
-def test_predict_ok(client):
-    r = client.post("/predict", json=APPLICANT, headers=KEY)
+def test_predict_ok_shape(client):
+    r = client.post("/predict", json=HEALTHY, headers=KEY)
     assert r.status_code == 200
     body = r.json()
     assert 0.0 <= body["probability_of_default"] <= 1.0
     assert body["recommendation"] in {"approve", "review", "decline"}
+    assert "why" in body and isinstance(body["why"], list) and len(body["why"]) > 0
+    assert "pricing" in body and "max_loan_amount" in body["pricing"]
+    assert "advice" in body
+
+
+def test_healthy_vs_risky_ordering(client):
+    """A model that can't tell these apart is useless — this is the core sanity check."""
+    healthy_pd = client.post("/predict", json=HEALTHY, headers=KEY).json()["probability_of_default"]
+    risky_pd = client.post("/predict", json=RISKY, headers=KEY).json()["probability_of_default"]
+    assert healthy_pd < 0.2
+    assert risky_pd > 0.5
+    assert risky_pd > healthy_pd
+
+
+def test_calibration_is_sane(client):
+    """Guards against the exact bug that shipped before: predicted PD should not be wildly
+    higher than what the decision thresholds imply is 'risky'. A healthy on-time payer must not
+    be flagged for decline (that was happening when the model was uncalibrated)."""
+    r = client.post("/predict", json=HEALTHY, headers=KEY).json()
+    assert r["recommendation"] == "approve"
+    assert r["probability_of_default"] < r["approve_threshold"] + 0.05
+
+
+def test_declined_applicant_gets_no_loan_offer(client):
+    r = client.post("/predict", json=RISKY, headers=KEY).json()
+    if r["recommendation"] == "decline":
+        assert r["pricing"]["max_loan_amount"] == 0
+
+
+def test_collateral_improves_terms(client):
+    """Collateral must never make an offer worse: same or better rate, same or larger approval."""
+    unsecured = client.post("/predict", json={**HEALTHY, "has_collateral": False}, headers=KEY).json()
+    secured = client.post("/predict", json={**HEALTHY, "has_collateral": True}, headers=KEY).json()
+    assert secured["pricing"]["interest_rate_pct"] <= unsecured["pricing"]["interest_rate_pct"]
+
+
+def test_advice_improves_pd(client):
+    r = client.post("/predict", json=RISKY, headers=KEY).json()
+    for item in r["advice"]:
+        assert item["projected_pd"] < item["current_pd"]
+        assert item["pd_improvement"] > 0
+
+
+def test_protected_attributes_rejected(client):
+    """Protected attributes must be structurally impossible to submit (extra='forbid')."""
+    tainted = {**HEALTHY, "sex": 2}
+    assert client.post("/predict", json=tainted, headers=KEY).status_code == 422
 
 
 def test_predict_validation(client):
-    bad = {**APPLICANT, "age": 5, "pay_status": [0, 0, 0, 0, 0, 99]}
+    bad = {**HEALTHY, "age": 5, "pay_status": [0] * 11 + [99]}
+    assert client.post("/predict", json=bad, headers=KEY).status_code == 422
+
+
+def test_predict_wrong_sequence_length(client):
+    bad = {**HEALTHY, "pay_status": [0, 0, 0]}   # must be exactly 12
     assert client.post("/predict", json=bad, headers=KEY).status_code == 422
 
 
 def test_batch(client):
-    r = client.post("/predict/batch", json={"applicants": [APPLICANT, APPLICANT]}, headers=KEY)
+    r = client.post("/predict/batch", json={"applicants": [HEALTHY, RISKY]}, headers=KEY)
     assert r.status_code == 200 and r.json()["count"] == 2
 
 
