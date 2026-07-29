@@ -95,6 +95,7 @@ def explain(cfg: dict, xgb_model, static_cols: list[str], static_row: np.ndarray
         if abs(impact) < 1e-4:
             continue
         factors.append({
+            "col": name,
             "factor": HUMAN_LABELS.get(name, name),
             "impact": round(impact, 4),
             "direction": "increases_risk" if impact > 0 else "decreases_risk",
@@ -114,10 +115,25 @@ def _sequence_factor(net, seq_std_actual: list[float], seq_std_ontime: list[floa
     pd_ontime = net.predict(seq_std_ontime, xgb_score)
     impact = pd_actual - pd_ontime
     return {
+        "col": "payment_history",
         "factor": "Recent payment history",
         "impact": round(float(impact), 4),
         "direction": "increases_risk" if impact > 0 else "decreases_risk",
     }
+
+
+def band(pd: float) -> str:
+    """Coarse risk grade (A best - E worst), independent of the approve/review/decline action
+    thresholds -- a descriptive bucket for dashboards/reporting, not a decision boundary."""
+    if pd <= 0.03:
+        return "A"
+    if pd <= 0.07:
+        return "B"
+    if pd <= 0.15:
+        return "C"
+    if pd <= 0.30:
+        return "D"
+    return "E"
 
 
 def price_loan(calibrated_pd: float, monthly_income: float, existing_debt: float,

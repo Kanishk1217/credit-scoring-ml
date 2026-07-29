@@ -120,3 +120,55 @@ def test_security_headers(client):
     r = client.get("/")
     assert r.headers["x-content-type-options"] == "nosniff"
     assert "x-request-id" in r.headers
+
+
+# --- /score, /score/batch: loan-officer dashboard contract ---
+
+OFFICER_HEALTHY = {
+    "age": 45, "monthly_income": 80000, "credit_limit": 400000, "existing_debt": 40000,
+    "employment_years": 12.0, "num_existing_loans": 1, "payment_history": [-1] * 12,
+}
+OFFICER_RISKY = {
+    "age": 29, "monthly_income": 30000, "credit_limit": 150000, "existing_debt": 120000,
+    "employment_years": 1.5, "num_existing_loans": 4,
+    "payment_history": [0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3],
+}
+
+
+def test_score_shape(client):
+    r = client.post("/score", json=OFFICER_HEALTHY, headers=KEY)
+    assert r.status_code == 200
+    body = r.json()
+    assert 0.0 <= body["pd"] <= 1.0
+    assert body["band"] in set("ABCDE")
+    assert body["verdict"] in {"approve", "review", "decline"}
+    assert len(body["factors"]) > 0
+    weights = [f["weightPct"] for f in body["factors"]]
+    assert abs(sum(weights) - 1.0) < 0.05   # weights should roughly sum to 1 (top_n truncation)
+    assert "offered_amount" in body["pricing"] and body["pricing"]["tenor_months"] == 24
+
+
+def test_score_healthy_vs_risky_ordering(client):
+    healthy_pd = client.post("/score", json=OFFICER_HEALTHY, headers=KEY).json()["pd"]
+    risky_pd = client.post("/score", json=OFFICER_RISKY, headers=KEY).json()["pd"]
+    assert risky_pd > healthy_pd
+
+
+def test_score_requires_key(client):
+    assert client.post("/score", json=OFFICER_HEALTHY).status_code == 401
+
+
+def test_score_protected_attributes_rejected(client):
+    tainted = {**OFFICER_HEALTHY, "gender": "F"}
+    assert client.post("/score", json=tainted, headers=KEY).status_code == 422
+
+
+def test_score_batch(client):
+    r = client.post("/score/batch",
+                    json={"applicants": {"H": OFFICER_HEALTHY, "R": OFFICER_RISKY}}, headers=KEY)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["summary"]["count"] == 2
+    ids = {row["applicant_id"] for row in body["results"]}
+    assert ids == {"H", "R"}
+    assert body["summary"]["approve"] + body["summary"]["review"] + body["summary"]["decline"] == 2

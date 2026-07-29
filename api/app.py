@@ -257,3 +257,174 @@ def predict(request: Request, applicant: Applicant, _key: ApiKey):
 def predict_batch(request: Request, batch: BatchRequest, _key: ApiKey):
     results = [_score(a) for a in batch.applicants]
     return BatchResponse(results=results, count=len(results))
+
+
+# --- /score, /score/batch: loan-officer dashboard contract (see docs/specs/dashboard-ux.md) ---
+# Same underlying model and scoring.py decision logic as /predict; only the request/response
+# shape differs, matching the dashboard's ApplicantInput/ScoreResult types field-for-field.
+
+OFFICER_TENOR_MONTHS = 24
+
+
+class OfficerApplicantInput(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    age: int = Field(..., ge=18, le=100)
+    monthly_income: float = Field(..., gt=0, le=1e8)
+    credit_limit: float = Field(..., ge=0, le=1e9)
+    existing_debt: float = Field(..., ge=0, le=1e9)
+    employment_years: float = Field(..., ge=0, le=60)
+    num_existing_loans: int = Field(..., ge=0, le=50)
+    payment_history: list[int] = Field(..., min_length=12, max_length=12)
+
+    @field_validator("payment_history")
+    @classmethod
+    def _status_range(cls, v: list[int]) -> list[int]:
+        if any(s < -2 or s > 9 for s in v):
+            raise ValueError("payment_history values must be between -2 and 9")
+        return v
+
+
+class OfficerFactor(BaseModel):
+    feature: str
+    label: str
+    value: str
+    contribution: float
+    direction: str
+    weightPct: float
+
+
+class OfficerPricing(BaseModel):
+    offered_amount: int
+    apr: float
+    emi: int
+    tenor_months: int
+
+
+class OfficerScoreResult(BaseModel):
+    pd: float
+    band: str
+    verdict: str
+    factors: list[OfficerFactor]
+    pricing: OfficerPricing
+
+
+class OfficerBatchRow(OfficerScoreResult):
+    applicant_id: str
+
+
+class OfficerBatchSummary(BaseModel):
+    count: int
+    approve: int
+    review: int
+    decline: int
+    avg_pd: float
+    median_pd: float
+    band_dist: dict[str, int]
+    total_offered_exposure: float
+
+
+class OfficerBatchRequest(BaseModel):
+    applicants: dict[str, OfficerApplicantInput] = Field(..., min_length=1, max_length=5000)
+
+
+class OfficerBatchResponse(BaseModel):
+    results: list[OfficerBatchRow]
+    summary: OfficerBatchSummary
+
+
+def _format_factor_value(col: str, a: OfficerApplicantInput) -> str:
+    if col == "age":
+        return f"{a.age}"
+    if col == "monthly_income":
+        return f"₹{a.monthly_income:,.0f}"
+    if col == "credit_limit":
+        return f"₹{a.credit_limit:,.0f}"
+    if col == "existing_debt":
+        return f"₹{a.existing_debt:,.0f}"
+    if col == "debt_to_income":
+        dti = a.existing_debt / (a.monthly_income * 12 + 1)
+        return f"{dti:.2f}"
+    if col == "employment_years":
+        return f"{a.employment_years:g} yrs"
+    if col == "num_existing_loans":
+        return f"{a.num_existing_loans}"
+    if col == "payment_history":
+        late = sum(1 for v in a.payment_history if v > 0)
+        return f"{late} late months" if late != 1 else "1 late month"
+    return ""
+
+
+def _score_officer(a: OfficerApplicantInput) -> OfficerScoreResult:
+    cfg, xgb, net = STATE["cfg"], STATE["xgb"], STATE["net"]
+    static_cols = cfg["static_cols"]
+
+    static_row = scoring.build_static_row(static_cols, a.age, a.monthly_income, a.credit_limit,
+                                          a.existing_debt, a.employment_years, a.num_existing_loans)
+    xgb_score = float(xgb.predict_proba(static_row)[0, 1])
+    seq_std = [(float(v) - cfg["seq_mean"]) / cfg["seq_std"] for v in a.payment_history]
+    raw_pd = net.predict(seq_std, xgb_score)
+    pd_ = scoring.calibrate(cfg, raw_pd)
+
+    decision, _approve_t, _decline_t = scoring.decide(cfg, pd_)
+
+    raw_factors = scoring.explain(cfg, xgb, static_cols, static_row, xgb_score, net, seq_std)
+    total = sum(abs(f["impact"]) for f in raw_factors) or 1.0
+    factors = [
+        OfficerFactor(
+            feature=f["col"],
+            label=f["factor"],
+            value=_format_factor_value(f["col"], a),
+            contribution=f["impact"],
+            direction="raises" if f["direction"] == "increases_risk" else "lowers",
+            weightPct=round(abs(f["impact"]) / total, 4),
+        )
+        for f in raw_factors
+    ]
+
+    pricing = scoring.price_loan(pd_, a.monthly_income, a.existing_debt, a.credit_limit,
+                                 decision, tenure_months=OFFICER_TENOR_MONTHS)
+
+    audit.info("officer decision pd=%.4f verdict=%s model=%s", pd_, decision, settings.app_version)
+
+    return OfficerScoreResult(
+        pd=round(pd_, 4), band=scoring.band(pd_), verdict=decision, factors=factors,
+        pricing=OfficerPricing(
+            offered_amount=pricing["max_loan_amount"],
+            apr=round(pricing["interest_rate_pct"] / 100, 4),
+            emi=pricing["monthly_emi"],
+            tenor_months=pricing["tenure_months"],
+        ),
+    )
+
+
+@app.post("/score", response_model=OfficerScoreResult, tags=["officer"])
+@limiter.limit(settings.rate_limit)
+def score(request: Request, applicant: OfficerApplicantInput, _key: ApiKey):
+    return _score_officer(applicant)
+
+
+@app.post("/score/batch", response_model=OfficerBatchResponse, tags=["officer"])
+@limiter.limit(settings.rate_limit)
+def score_batch(request: Request, batch: OfficerBatchRequest, _key: ApiKey):
+    rows = [
+        OfficerBatchRow(applicant_id=aid, **_score_officer(a).model_dump())
+        for aid, a in batch.applicants.items()
+    ]
+    counts = {"approve": 0, "review": 0, "decline": 0}
+    band_dist = {b: 0 for b in "ABCDE"}
+    exposure = 0.0
+    for r in rows:
+        counts[r.verdict] += 1
+        band_dist[r.band] += 1
+        if r.verdict != "decline":
+            exposure += r.pricing.offered_amount
+    pds = sorted(r.pd for r in rows)
+    n = len(pds)
+    median = pds[n // 2] if n % 2 else (pds[n // 2 - 1] + pds[n // 2]) / 2
+    summary = OfficerBatchSummary(
+        count=n, approve=counts["approve"], review=counts["review"], decline=counts["decline"],
+        avg_pd=round(sum(pds) / n, 4), median_pd=round(median, 4),
+        band_dist=band_dist, total_offered_exposure=exposure,
+    )
+    return OfficerBatchResponse(results=rows, summary=summary)
