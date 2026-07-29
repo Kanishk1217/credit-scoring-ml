@@ -136,9 +136,22 @@ it is **not** validated for real lending decisions. Calibration, cost-based thre
 fairness audit are already implemented (see the model card), but before any real use the model
 would need retraining on the lender's own real population and ongoing drift monitoring.
 
+## Model verification
+Beyond the metrics above, the model has been checked for:
+- **CV stability**: 5-fold CV, AUC 0.884-0.891 (std 0.0024) — not a lucky split (`src/cross_validate.py`).
+- **Prevalence sensitivity**: AUC/recall are stable across natural vs artificially-balanced
+  evaluation sets; precision and calibration are not (expected — calibration is population-specific).
+- **Monotonicity**: risk moves in the economically sensible direction for every static feature
+  (more debt → more risk, more income → less risk, etc.), with no reversals.
+- **Drift monitoring**: `src/drift_monitor.py` computes the Population Stability Index against a
+  saved reference distribution and flags moderate/major population shift (e.g. would catch a real
+  deployment population drifting away from the one the model was calibrated on).
+
+Full numbers: `reports/model_report_card.md`.
+
 ## Roadmap
 - Loan-officer dashboard (single applicant + CSV batch)
 - Consumer self-assessment page (check your own risk, get improvement advice)
 - Self-serve API-key sign-up
-- Real Indian credit-bureau data as a design-partner pilot
-- Drift monitoring (PSI) on incoming traffic
+- Real Indian credit-bureau data as a design-partner pilot (see the world-readiness gap in
+  `docs/model_card.md` — the model is not validated against real people yet)
