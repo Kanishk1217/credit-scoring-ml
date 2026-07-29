@@ -105,3 +105,35 @@ deliberately removed from scoring earlier in this project for the same reason.
 
 Saved to `models_real_rich/` (not `models_real/` or `models/`) — nothing currently served by
 `api/app.py` has changed; that decision is still pending.
+
+## Update: fairness gap mitigation, tested with real numbers
+
+Root cause first: `EXT_SOURCE_1` mean is 0.546 for women vs 0.407 for men in the raw Home Credit
+data, and region-1 (best-rated) applicants average 0.568 vs 0.469 for region-3. This isn't a
+scoring artifact — actual default rates really do differ the same direction (women 7.0% vs men
+10.1%; region-1 4.8% vs region-3 11.1%), so part of the demographic-parity gap is the model
+correctly learning a real difference in outcomes, not manufacturing one.
+
+But the **equalized-odds gap** (TPR-on-good-borrowers, which conditions on actual outcome and so
+isolates the part of the disparity NOT explained by differing base rates) was still substantial:
+0.0344 for gender, 0.0775 for region. That residual is the part worth fixing.
+
+**Mitigation tested** (`src/fairness_mitigation_real_rich.py`, no retraining — reuses the saved
+`models_real_rich/` artifacts): replace the single global decline threshold with a per-group
+threshold chosen to equalize each group's TPR-on-good-borrowers to the population-wide rate.
+
+| | Gender: before → after | Region: before → after |
+|---|---|---|
+| Equalized-odds gap | 0.0344 → **0.0079** (-77%) | 0.0775 → **0.0178** (-77%) |
+| Demographic-parity gap | 0.0454 → 0.0159 | 0.1026 → 0.0143 |
+| Overall recall | 0.3610 → 0.3472 | 0.3610 → 0.3546 |
+| Overall precision | 0.2679 → 0.2707 | 0.2679 → 0.2607 |
+
+**A ~77% reduction in the equalized-odds gap costs under 1.5 points of overall recall and
+essentially nothing in precision.** This is a cheap, high-value fix and should be applied before
+any real deployment. Caveat: this test adjusts one attribute at a time (gender-only or
+region-only); the two group splits weren't adjusted simultaneously, and a production version
+would need intersectional group thresholds (e.g. female + region-3) or a documented choice of
+which single attribute to prioritize, since correcting for both at once with this simple method
+isn't additive. Not yet wired into `api/scoring.py` — this is a validated finding, not yet a
+shipped fix.
