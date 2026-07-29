@@ -41,7 +41,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from api import scoring
+from api import advice_engine, scoring
 from api.config import settings
 from api.infer_numpy import NumpyHybrid
 
@@ -428,3 +428,105 @@ def score_batch(request: Request, batch: OfficerBatchRequest, _key: ApiKey):
         band_dist=band_dist, total_offered_exposure=exposure,
     )
     return OfficerBatchResponse(results=rows, summary=summary)
+
+
+# --- /self-assessment: consumer self-service contract (see docs/specs/consumer-ux.md) ---
+# Same model + scoring.py decision logic, wrapped in warm ("readiness", not "reject") framing,
+# plus an advice/goal engine that re-scores real what-if profiles through the actual model
+# rather than guessing -- every delta shown to the user came from an actual forward pass.
+
+class ConsumerProfile(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    age: int = Field(..., ge=18, le=80)
+    monthly_income: float = Field(..., gt=0, le=1e8)
+    credit_limit: float = Field(..., ge=0, le=1e9)
+    existing_debt: float = Field(..., ge=0, le=1e9)
+    employment_years: float = Field(..., ge=0, le=50)
+    num_existing_loans: int = Field(..., ge=0, le=20)
+    payment_history: list[int] = Field(..., min_length=12, max_length=12)
+
+    @field_validator("payment_history")
+    @classmethod
+    def _status_range(cls, v: list[int]) -> list[int]:
+        if any(s < -2 or s > 9 for s in v):
+            raise ValueError("payment_history values must be between -2 and 9")
+        return v
+
+
+class SelfAssessmentRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    profile: ConsumerProfile
+
+
+class ConsumerOffer(BaseModel):
+    qualifies: bool
+    secured: bool
+    max_amount: int
+    apr: float
+    tenure_months: int
+    monthly_emi: int
+
+
+class ConsumerWhyFactor(BaseModel):
+    feature: str
+    label: str
+    impact: float
+    direction: str
+    detail: str
+
+
+class ConsumerAdvice(BaseModel):
+    id: str
+    title: str
+    pd_before: float
+    pd_after: float
+    delta: float
+    effort: str
+    horizon_months: int
+    cost_inr: float | None
+    unlocks: ConsumerOffer
+
+
+class ConsumerGoal(BaseModel):
+    target_pd: float
+    reachable: bool
+    steps: list[str]
+    projected_pd: float
+    projected_offer: ConsumerOffer
+
+
+class AssessResponse(BaseModel):
+    pd: float
+    band: str
+    band_headline: str
+    threshold: float
+    offer_now: ConsumerOffer
+    why: list[ConsumerWhyFactor]
+    advice: list[ConsumerAdvice]
+    goal: ConsumerGoal
+
+
+@app.post("/self-assessment", response_model=AssessResponse, tags=["consumer"])
+@limiter.limit(settings.rate_limit)
+def self_assessment(request: Request, body: SelfAssessmentRequest, _key: ApiKey):
+    cfg, xgb, net = STATE["cfg"], STATE["xgb"], STATE["net"]
+    profile = body.profile.model_dump()
+    threshold = cfg["thresholds"]["decline"]
+
+    pd_ = advice_engine.score_profile(cfg, xgb, net, profile)
+    band_name, headline = advice_engine.band(pd_, threshold)
+    offer_now = advice_engine.price_offer(pd_, threshold, profile["monthly_income"], profile["existing_debt"])
+    why = advice_engine.why_factors(cfg, xgb, net, profile)
+    advice_items = advice_engine.build_advice(cfg, xgb, net, profile, pd_, threshold)
+    goal = advice_engine.build_goal(cfg, xgb, net, profile, advice_items, pd_, threshold)
+
+    audit.info("self-assessment pd=%.4f band=%s model=%s", pd_, band_name, settings.app_version)
+
+    return AssessResponse(
+        pd=round(pd_, 4), band=band_name, band_headline=headline, threshold=round(threshold, 4),
+        offer_now=ConsumerOffer(**offer_now),
+        why=[ConsumerWhyFactor(**w) for w in why],
+        advice=[ConsumerAdvice(**{k: v for k, v in a.items() if k != "_mutate"}) for a in advice_items],
+        goal=ConsumerGoal(**goal),
+    )

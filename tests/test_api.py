@@ -172,3 +172,50 @@ def test_score_batch(client):
     ids = {row["applicant_id"] for row in body["results"]}
     assert ids == {"H", "R"}
     assert body["summary"]["approve"] + body["summary"]["review"] + body["summary"]["decline"] == 2
+
+
+# --- /self-assessment: consumer contract ---
+
+CONSUMER_PROFILE = {
+    "age": 34, "monthly_income": 65000, "credit_limit": 200000, "existing_debt": 180000,
+    "employment_years": 4, "num_existing_loans": 2,
+    "payment_history": [0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1, 0],
+}
+
+
+def test_self_assessment_shape(client):
+    r = client.post("/self-assessment", json={"profile": CONSUMER_PROFILE}, headers=KEY)
+    assert r.status_code == 200
+    body = r.json()
+    assert 0.0 <= body["pd"] <= 1.0
+    assert body["band"] in {"thriving", "steady", "almost", "building", "starting"}
+    assert "reject" not in body["band_headline"].lower() and "denied" not in body["band_headline"].lower()
+    assert len(body["why"]) > 0
+    assert "goal" in body and "target_pd" in body["goal"]
+
+
+def test_self_assessment_requires_key(client):
+    assert client.post("/self-assessment", json={"profile": CONSUMER_PROFILE}).status_code == 401
+
+
+def test_self_assessment_protected_attributes_rejected(client):
+    tainted = {"profile": {**CONSUMER_PROFILE, "sex": 1}}
+    assert client.post("/self-assessment", json=tainted, headers=KEY).status_code == 422
+
+
+def test_self_assessment_advice_never_worsens_pd(client):
+    r = client.post("/self-assessment", json={"profile": CONSUMER_PROFILE}, headers=KEY).json()
+    for item in r["advice"]:
+        assert item["pd_after"] < item["pd_before"]
+        assert item["delta"] > 0
+
+
+def test_self_assessment_goal_reaches_or_admits_unreachable(client):
+    risky_profile = {**CONSUMER_PROFILE, "existing_debt": 900000, "monthly_income": 25000,
+                     "payment_history": [3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9]}
+    r = client.post("/self-assessment", json={"profile": risky_profile}, headers=KEY).json()
+    goal = r["goal"]
+    if goal["reachable"]:
+        assert goal["projected_pd"] <= goal["target_pd"]
+    else:
+        assert goal["projected_offer"] is not None
