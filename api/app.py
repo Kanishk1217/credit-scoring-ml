@@ -60,11 +60,21 @@ async def lifespan(app: FastAPI):
     STATE["cfg"] = json.loads((model_dir / "hybrid_config.json").read_text())
     STATE["xgb"] = joblib.load(model_dir / "hybrid_xgb.joblib")
     STATE["net"] = NumpyHybrid(model_dir / "hybrid_fusion.npz", STATE["cfg"]["lstm_hidden"])
+
+    registry_path = ROOT / "model_registry.json"
+    if registry_path.exists():
+        registry = json.loads(registry_path.read_text())
+        STATE["registry_entry"] = registry.get("models", {}).get(settings.model_dir)
+    else:
+        STATE["registry_entry"] = None
+        logger.warning("model_registry.json not found; run `uv run python src/build_model_registry.py`")
+
     if not settings.api_key_set:
         logger.warning("No API keys configured (CREDIT_API_KEYS). Scoring endpoints will return 503.")
-    logger.info("models loaded from %s; %d API key(s) configured; test AUC=%s",
+    logger.info("models loaded from %s; %d API key(s) configured; test AUC=%s; fingerprint=%s",
                 settings.model_dir, len(settings.api_key_set),
-                STATE["cfg"].get("metrics", {}).get("test_auc"))
+                STATE["cfg"].get("metrics", {}).get("test_auc"),
+                (STATE["registry_entry"] or {}).get("fingerprint"))
     yield
     STATE.clear()
 
@@ -246,11 +256,25 @@ def _score(a: Applicant) -> AssessmentResponse:
 
 @app.get("/", tags=["health"])
 def health():
+    registry_entry = STATE.get("registry_entry")
     return {"status": "ok", "model": "hybrid XGBoost + LSTM (calibrated)",
             "model_dir": settings.model_dir,
             "data_source": STATE.get("cfg", {}).get("data_source"),
             "version": settings.app_version, "models_loaded": bool(STATE),
-            "test_auc": STATE.get("cfg", {}).get("metrics", {}).get("test_auc")}
+            "test_auc": STATE.get("cfg", {}).get("metrics", {}).get("test_auc"),
+            "fingerprint": (registry_entry or {}).get("fingerprint"),
+            "registered_at": (registry_entry or {}).get("registered_at"),
+            "trained_at_commit": (registry_entry or {}).get("git_commit")}
+
+
+@app.get("/model-registry", tags=["health"])
+def model_registry():
+    """Full provenance catalog of every trained model directory -- data source, metrics,
+    fairness audit, and a content fingerprint of the actual trained artifacts."""
+    registry_path = ROOT / "model_registry.json"
+    if not registry_path.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "model_registry.json not found")
+    return json.loads(registry_path.read_text())
 
 
 @app.post("/predict", response_model=AssessmentResponse, tags=["scoring"])

@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-07-29T21:28:35+00:00",
+  "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f",
+  "models": {
+    "models": {
+      "data_source": "SYNTHETIC (src/synth_data.py)",
+      "n_total": null,
+      "static_feature_count": 7,
+      "seq_len": 12,
+      "thresholds": {
+        "approve": 0.079,
+        "decline": 0.158
+      },
+      "metrics": {
+        "test_auc": 0.8923,
+        "test_brier": 0.1008,
+        "test_default_rate": 0.2236,
+        "test_mean_predicted_pd": 0.2198
+      },
+      "fairness_audit": {
+        "gender": 0.0,
+        "region": 0.015
+      },
+      "fingerprint": "sha256:96bfafc0bbee973f",
+      "registered_at": "2026-07-29T21:28:35+00:00",
+      "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f"
+    },
+    "models_real": {
+      "data_source": "REAL Home Credit (application_train + bureau + installments_payments)",
+      "n_total": 167115,
+      "static_feature_count": 7,
+      "seq_len": 12,
+      "thresholds": {
+        "approve": 0.084,
+        "decline": 0.167
+      },
+      "metrics": {
+        "test_auc": 0.6654,
+        "test_brier": 0.0728,
+        "test_default_rate": 0.0812,
+        "test_mean_predicted_pd": 0.0818
+      },
+      "fairness_audit": {
+        "gender": 0.0055,
+        "region": 0.0232
+      },
+      "fingerprint": "sha256:4bc1e4bfb51222a2",
+      "registered_at": "2026-07-29T21:28:35+00:00",
+      "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f"
+    },
+    "models_real_rich": {
+      "data_source": "REAL Home Credit, ENRICHED (all 7 tables: application, bureau, bureau_balance, previous_application, POS_CASH_balance, credit_card_balance, installments_payments)",
+      "n_total": 167115,
+      "static_feature_count": 38,
+      "seq_len": 12,
+      "thresholds": {
+        "approve": 0.098,
+        "decline": 0.195
+      },
+      "metrics": {
+        "test_auc": 0.7564,
+        "test_brier": 0.0683,
+        "test_accuracy": 0.868,
+        "test_precision": 0.2679,
+        "test_recall": 0.361,
+        "test_default_rate": 0.0812,
+        "test_mean_predicted_pd": 0.0813
+      },
+      "fairness_audit": {
+        "gender": 0.0454,
+        "region": 0.1026
+      },
+      "fingerprint": "sha256:f1d96529edd20617",
+      "registered_at": "2026-07-29T21:28:35+00:00",
+      "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f"
+    }
+  }
+}

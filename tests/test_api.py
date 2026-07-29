@@ -251,3 +251,21 @@ def test_self_assessment_note_on_implausible_credit_limit(client):
     r = client.post("/self-assessment", json={"profile": profile}, headers=KEY).json()
     assert r["note"] is not None
     assert r["offer_now"]["qualifies"] is False
+
+
+# --- model registry ---
+
+def test_health_reports_registry_provenance(client):
+    r = client.get("/").json()
+    assert r["fingerprint"] is not None and r["fingerprint"].startswith("sha256:")
+    assert r["registered_at"] is not None
+
+
+def test_model_registry_endpoint_lists_all_known_models(client):
+    r = client.get("/model-registry")
+    assert r.status_code == 200
+    models = r.json()["models"]
+    assert {"models", "models_real", "models_real_rich"} <= set(models.keys())
+    for entry in models.values():
+        assert entry["fingerprint"].startswith("sha256:")
+        assert "test_auc" in entry["metrics"]

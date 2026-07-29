@@ -162,3 +162,21 @@ that `models_real/` is a drop-in replacement — the base real-data model uses t
 Added `tests/test_model_dir_config.py` (subprocess-isolated, since `Settings` loads once at import
 time) proving both the default synthetic path and the `CREDIT_MODEL_DIR=models_real` path serve
 the right model with the right honest AUC. All 28 tests pass.
+
+## Update: model registry (Phase 5)
+
+`src/build_model_registry.py` catalogs every trained model directory (`models/`, `models_real/`,
+`models_real_rich/`) into `model_registry.json` at the repo root: data source, row count, feature
+count, thresholds, metrics, fairness-audit gaps, and a **fingerprint** — a sha256 of the actual
+trained artifact files (`hybrid_xgb.joblib` + `hybrid_fusion.npz`), not the raw training data.
+Hashing the artifacts directly means the fingerprint changes if and only if the model itself
+changes (different data, features, or training run), which is a stronger provenance guarantee
+than hashing a config file that could drift from what was actually saved. Also records the git
+commit HEAD was at when the registry was last generated.
+
+`api/app.py`'s health check (`GET /`) now reports the fingerprint, registration time, and commit
+for whichever model is currently loaded, and a new `GET /model-registry` returns the full catalog
+— so at any moment, in any environment, "what is this API actually serving right now, and how was
+it built" is answerable without SSH access or tribal knowledge. Rerun
+`uv run python src/build_model_registry.py` after training any new model variant to keep the
+registry current; it is not auto-generated on every request.
