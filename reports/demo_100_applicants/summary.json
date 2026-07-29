@@ -1,0 +1,17 @@
+{
+  "description": "Demo: 100 fresh synthetic applicants (seed=7777, never seen in training/val/cal/test), scored through the real deployed hybrid model (/predict/batch).",
+  "n_applicants": 100,
+  "actual_defaulters": 23,
+  "confusion_matrix": {
+    "true_positive_caught": 20,
+    "false_positive": 31,
+    "true_negative": 46,
+    "false_negative_missed": 3
+  },
+  "accuracy": 0.66,
+  "recall_catch_rate": 0.8696,
+  "precision": 0.3922,
+  "specificity": 0.5974,
+  "always_approve_baseline_accuracy": 0.77,
+  "note": "Raw accuracy (0.66) is LOWER than the naive always-approve baseline (0.77), which is exactly why accuracy is the wrong metric here -- recall (0.87, defaulters actually caught) is what matters."
+}

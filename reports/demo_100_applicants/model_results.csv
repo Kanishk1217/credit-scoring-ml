@@ -1,0 +1,101 @@
+applicant_id,probability_of_default,recommendation,max_loan_amount,interest_rate_pct,top_factor,actual_default_SIMULATED_GROUND_TRUTH_ONLY
+A001,0.0682,approve,95000,13.73,Employment history,0
+A002,0.0507,approve,117000,13.03,Recent payment history,0
+A003,0.7016,decline,0,24.0,Recent payment history,1
+A004,0.028,approve,204000,12.12,Monthly income,0
+A005,0.5188,decline,0,24.0,Recent payment history,1
+A006,0.0138,approve,251000,11.55,Monthly income,0
+A007,0.0018,approve,245000,11.07,Monthly income,0
+A008,0.0009,approve,349000,11.04,Monthly income,0
+A009,0.0034,approve,343000,11.14,Employment history,0
+A010,0.615,decline,0,24.0,Recent payment history,0
+A011,0.1756,decline,0,18.03,Recent payment history,0
+A012,0.0507,approve,108000,13.03,Debt-to-income ratio,0
+A013,0.4592,decline,0,24.0,Recent payment history,1
+A014,0.1933,decline,0,18.73,Monthly income,0
+A015,0.2747,decline,0,21.99,Age,0
+A016,0.1099,review,170000,15.4,Debt-to-income ratio,1
+A017,0.1719,decline,0,17.88,Employment history,1
+A018,0.0615,approve,250000,13.46,Monthly income,0
+A019,0.9605,decline,0,24.0,Recent payment history,1
+A020,0.0278,approve,103000,12.11,Age,0
+A021,0.198,decline,0,18.92,Recent payment history,0
+A022,0.2772,decline,0,22.09,Recent payment history,0
+A023,0.1054,review,195000,15.22,Age,0
+A024,0.3486,decline,0,24.0,Recent payment history,0
+A025,0.9336,decline,0,24.0,Recent payment history,1
+A026,0.7695,decline,0,24.0,Recent payment history,1
+A027,0.0894,review,54000,14.58,Age,0
+A028,0.076,approve,338000,14.04,Monthly income,1
+A029,0.3486,decline,0,24.0,Recent payment history,0
+A030,0.0352,approve,122000,12.41,Age,0
+A031,0.0138,approve,70000,11.55,Age,0
+A032,0.0935,review,121000,14.74,Age,0
+A033,0.0526,approve,252000,13.11,Debt-to-income ratio,0
+A034,0.0352,approve,132000,12.41,Monthly income,0
+A035,0.3486,decline,0,24.0,Recent payment history,1
+A036,0.3079,decline,0,23.32,Recent payment history,0
+A037,0.0993,review,133000,14.97,Age,0
+A038,0.0,approve,525000,11.0,Monthly income,0
+A039,0.9605,decline,0,24.0,Recent payment history,1
+A040,0.1933,decline,0,18.73,Age,0
+A041,0.1933,decline,0,18.73,Recent payment history,1
+A042,0.0185,approve,83000,11.74,Employment history,0
+A043,0.2584,decline,0,21.33,Recent payment history,0
+A044,0.7016,decline,0,24.0,Recent payment history,1
+A045,0.615,decline,0,24.0,Recent payment history,0
+A046,0.5188,decline,0,24.0,Recent payment history,1
+A047,0.0352,approve,150000,12.41,Age,0
+A048,0.7695,decline,0,24.0,Recent payment history,0
+A049,0.1267,review,191000,16.07,Recent payment history,0
+A050,0.0185,approve,167000,11.74,Number of existing loans,0
+A051,0.1933,decline,0,18.73,Recent payment history,0
+A052,0.8217,decline,0,24.0,Recent payment history,1
+A053,0.2078,decline,0,19.31,Debt-to-income ratio,0
+A054,0.1756,decline,0,18.03,Age,0
+A055,0.6195,decline,0,24.0,Recent payment history,0
+A056,0.0185,approve,381000,11.74,Monthly income,0
+A057,0.1712,decline,0,17.85,Number of existing loans,0
+A058,0.0935,review,130000,14.74,Recent payment history,0
+A059,0.8999,decline,0,24.0,Recent payment history,1
+A060,0.1267,review,79000,16.07,Monthly income,0
+A061,0.1267,review,120000,16.07,Recent payment history,0
+A062,0.0,approve,184000,11.0,Employment history,0
+A063,0.0352,approve,40000,12.41,Monthly income,0
+A064,0.1933,decline,0,18.73,Monthly income,0
+A065,0.5188,decline,0,24.0,Recent payment history,1
+A066,0.1756,decline,0,18.03,Monthly income,0
+A067,0.7611,decline,0,24.0,Recent payment history,1
+A068,0.0138,approve,239000,11.55,Age,0
+A069,0.0935,review,64000,14.74,Debt-to-income ratio,0
+A070,0.1756,decline,0,18.03,Debt-to-income ratio,0
+A071,0.1738,decline,0,17.95,Recent payment history,0
+A072,0.1267,review,172000,16.07,Age,0
+A073,0.3486,decline,0,24.0,Recent payment history,0
+A074,0.0138,approve,174000,11.55,Age,0
+A075,0.5946,decline,0,24.0,Recent payment history,1
+A076,0.5575,decline,0,24.0,Recent payment history,1
+A077,0.6195,decline,0,24.0,Recent payment history,0
+A078,0.8789,decline,0,24.0,Recent payment history,1
+A079,0.0935,review,273000,14.74,Monthly income,1
+A080,0.0507,approve,189000,13.03,Age,0
+A081,0.4517,decline,0,24.0,Recent payment history,0
+A082,0.7695,decline,0,24.0,Recent payment history,1
+A083,0.5946,decline,0,24.0,Recent payment history,0
+A084,0.0138,approve,112000,11.55,Employment history,0
+A085,0.198,decline,0,18.92,Recent payment history,0
+A086,0.0935,review,120000,14.74,Age,0
+A087,0.0025,approve,153000,11.1,Age,0
+A088,0.0131,approve,45000,11.52,Employment history,0
+A089,0.7581,decline,0,24.0,Recent payment history,0
+A090,0.0,approve,88000,11.0,Age,0
+A091,0.3079,decline,0,23.32,Recent payment history,0
+A092,0.1443,review,188000,16.77,Recent payment history,0
+A093,0.0185,approve,256000,11.74,Employment history,0
+A094,0.0112,approve,235000,11.45,Age,0
+A095,0.0137,approve,92000,11.55,Monthly income,0
+A096,0.5188,decline,0,24.0,Recent payment history,0
+A097,0.062,approve,189000,13.48,Recent payment history,0
+A098,0.3079,decline,0,23.32,Recent payment history,0
+A099,0.0185,approve,295000,11.74,Age,0
+A100,0.0138,approve,143000,11.55,Age,0
