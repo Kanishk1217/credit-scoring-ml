@@ -137,3 +137,28 @@ would need intersectional group thresholds (e.g. female + region-3) or a documen
 which single attribute to prioritize, since correcting for both at once with this simple method
 isn't additive. Not yet wired into `api/scoring.py` — this is a validated finding, not yet a
 shipped fix.
+
+## Update: model promotion path decided
+
+`api/app.py` now loads its model directory from `settings.model_dir` (env var
+`CREDIT_MODEL_DIR`, default `"models"`) instead of a hardcoded path. Verified end-to-end
+(`/predict` gives sane output, `/` health check reports the right `data_source` and `test_auc`)
+that `models_real/` is a drop-in replacement — the base real-data model uses the identical
+7-feature, 12-month-sequence schema, so zero code changes were needed beyond the config toggle.
+
+**The decision, and why:**
+- `models/` (synthetic, default) stays the default because the existing regression test suite
+  (`test_calibration_reduces_systematic_bias`) generates fresh synthetic data to verify calibration
+  — that test is specific to the synthetic distribution and would fail if pointed at real data
+  trained on a completely different feature distribution. Nothing about promoting a real model
+  should risk breaking that regression protection.
+- `models_real/` (7 features, AUC 0.665, honest and real) is the intended target for the public
+  API and the consumer-facing `/advisor` page (Phase 3) — those only ever see self-reportable
+  fields a new applicant could type into a form, which is exactly this model's schema.
+- `models_real_rich/` (38 features, AUC 0.756, includes EXT_SOURCE/bureau history) is reserved for
+  the internal loan-officer dashboard (Phase 2) — it needs data only a lender's own systems
+  already hold on an existing customer, so it's not appropriate for public self-service.
+
+Added `tests/test_model_dir_config.py` (subprocess-isolated, since `Settings` loads once at import
+time) proving both the default synthetic path and the `CREDIT_MODEL_DIR=models_real` path serve
+the right model with the right honest AUC. All 28 tests pass.

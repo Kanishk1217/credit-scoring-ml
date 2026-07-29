@@ -1,4 +1,5 @@
 {
+  "data_source": "SYNTHETIC (src/synth_data.py)",
   "static_cols": [
     "age",
     "monthly_income",

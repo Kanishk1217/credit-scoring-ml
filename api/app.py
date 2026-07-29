@@ -56,13 +56,15 @@ STATE: dict = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    STATE["cfg"] = json.loads((ROOT / "models" / "hybrid_config.json").read_text())
-    STATE["xgb"] = joblib.load(ROOT / "models" / "hybrid_xgb.joblib")
-    STATE["net"] = NumpyHybrid(ROOT / "models" / "hybrid_fusion.npz", STATE["cfg"]["lstm_hidden"])
+    model_dir = ROOT / settings.model_dir
+    STATE["cfg"] = json.loads((model_dir / "hybrid_config.json").read_text())
+    STATE["xgb"] = joblib.load(model_dir / "hybrid_xgb.joblib")
+    STATE["net"] = NumpyHybrid(model_dir / "hybrid_fusion.npz", STATE["cfg"]["lstm_hidden"])
     if not settings.api_key_set:
         logger.warning("No API keys configured (CREDIT_API_KEYS). Scoring endpoints will return 503.")
-    logger.info("models loaded; %d API key(s) configured; test AUC=%s",
-                len(settings.api_key_set), STATE["cfg"].get("metrics", {}).get("test_auc"))
+    logger.info("models loaded from %s; %d API key(s) configured; test AUC=%s",
+                settings.model_dir, len(settings.api_key_set),
+                STATE["cfg"].get("metrics", {}).get("test_auc"))
     yield
     STATE.clear()
 
@@ -238,6 +240,8 @@ def _score(a: Applicant) -> AssessmentResponse:
 @app.get("/", tags=["health"])
 def health():
     return {"status": "ok", "model": "hybrid XGBoost + LSTM (calibrated)",
+            "model_dir": settings.model_dir,
+            "data_source": STATE.get("cfg", {}).get("data_source"),
             "version": settings.app_version, "models_loaded": bool(STATE),
             "test_auc": STATE.get("cfg", {}).get("metrics", {}).get("test_auc")}
 

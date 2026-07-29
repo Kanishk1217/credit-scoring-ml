@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     environment: str = "development"          # "production" tightens behavior
 
+    # Which trained model directory to serve: "models" (synthetic, default — keeps the existing
+    # test suite's synthetic-data assumptions valid), "models_real" (7-feature, real Home Credit,
+    # self-reportable schema — the public/consumer-facing choice), or "models_real_rich"
+    # (38-feature, real Home Credit + bureau/EXT_SOURCE — internal loan-officer use only, since
+    # those features require data a self-service applicant can't provide themselves).
+    model_dir: str = "models"
+
     # Comma-separated list of valid API keys. REQUIRED — the API refuses to score without keys.
     api_keys: str = ""
 
