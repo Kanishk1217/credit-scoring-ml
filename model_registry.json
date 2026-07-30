@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-29T21:28:35+00:00",
-  "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f",
+  "generated_at": "2026-07-30T08:54:38+00:00",
+  "git_commit": "357e872f497b7117acebb2e5e4644c5954266483",
   "models": {
     "models": {
       "data_source": "SYNTHETIC (src/synth_data.py)",
@@ -22,8 +22,8 @@
         "region": 0.015
       },
       "fingerprint": "sha256:96bfafc0bbee973f",
-      "registered_at": "2026-07-29T21:28:35+00:00",
-      "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f"
+      "registered_at": "2026-07-30T08:54:38+00:00",
+      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
     },
     "models_real": {
       "data_source": "REAL Home Credit (application_train + bureau + installments_payments)",
@@ -31,8 +31,8 @@
       "static_feature_count": 7,
       "seq_len": 12,
       "thresholds": {
-        "approve": 0.084,
-        "decline": 0.167
+        "approve": 0.0372,
+        "decline": 0.0745
       },
       "metrics": {
         "test_auc": 0.6654,
@@ -45,8 +45,8 @@
         "region": 0.0232
       },
       "fingerprint": "sha256:4bc1e4bfb51222a2",
-      "registered_at": "2026-07-29T21:28:35+00:00",
-      "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f"
+      "registered_at": "2026-07-30T08:54:38+00:00",
+      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
     },
     "models_real_rich": {
       "data_source": "REAL Home Credit, ENRICHED (all 7 tables: application, bureau, bureau_balance, previous_application, POS_CASH_balance, credit_card_balance, installments_payments)",
@@ -54,8 +54,8 @@
       "static_feature_count": 38,
       "seq_len": 12,
       "thresholds": {
-        "approve": 0.098,
-        "decline": 0.195
+        "approve": 0.043,
+        "decline": 0.086
       },
       "metrics": {
         "test_auc": 0.7564,
@@ -71,8 +71,40 @@
         "region": 0.1026
       },
       "fingerprint": "sha256:f1d96529edd20617",
-      "registered_at": "2026-07-29T21:28:35+00:00",
-      "git_commit": "2d8988226058eeea3b1bda0f1483d6f62ab19b2f"
+      "registered_at": "2026-07-30T08:54:38+00:00",
+      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
+    },
+    "models_lendingclub": {
+      "data_source": "REAL LendingClub historical loans (2007-2011, resolved outcomes only) -- market=lendingclub",
+      "n_total": 38577,
+      "static_feature_count": 34,
+      "seq_len": null,
+      "thresholds": {
+        "approve": 0.0835,
+        "decline": 0.167
+      },
+      "metrics": {
+        "confusion_matrix": {
+          "true_positive": 334,
+          "false_positive": 951,
+          "true_negative": 3995,
+          "false_negative": 510
+        },
+        "n_test": 5790,
+        "test_default_rate": 0.1458,
+        "test_accuracy": 0.7477,
+        "test_precision": 0.2599,
+        "test_recall": 0.3957,
+        "test_auc": 0.6608,
+        "test_brier": 0.1194,
+        "test_mean_predicted_pd": 0.1422
+      },
+      "fairness_audit": {
+        "region": 0.0857
+      },
+      "fingerprint": "sha256:17eaab39d4b5a52f",
+      "registered_at": "2026-07-30T08:54:38+00:00",
+      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
     }
   }
 }
