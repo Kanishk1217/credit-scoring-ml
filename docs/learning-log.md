@@ -655,3 +655,77 @@ GitHub individually rather than batched at the end.
 production scoring — that's the highest-leverage remaining reliability gap. After that: self-serve
 API-key sign-up (spec not yet written) and deciding whether/how to combine gender+region group
 thresholds (tested independently so far, not simultaneously).
+
+## Session 16 — 2026-07-30 (later same day) — Production fixes, a new-market onboarding
+pipeline, and consolidating the Home Credit training scripts
+
+Same day as Session 15, separate sitting. User reported three things broken on the live
+deployed site (screenshots): the homepage live demo showed a dev-only "start the API on :8077"
+message, `/officer` returned 401 "unauthorized", `/advisor` returned "invalid or missing API
+key". Root cause for all three: the same Cloudflare `API_KEY` secret / Render `CREDIT_API_KEYS`
+mismatch. Fixed: generated a new shared key, set it via `wrangler pages secret put` (I have
+Cloudflare CLI access, not Render dashboard access — user pasted the Render side themselves).
+Also fixed along the way: `/docs` wasn't actually disabled in production (added a real
+`is_production` check, previously dead code); the Cloudflare Pages Function proxy silently
+dropped every response header except `content-type`; `/model-registry` had no auth requirement
+while every other endpoint did; Dockerfile only shipped `models/` to Render, not the registry
+file or the other two model dirs.
+
+### User asked: "how good is the model, honestly — find me real lender data to test it on"
+Explicitly rejected reusing Home Credit/Taiwan/German/Give-Me-Some-Credit ("we have used these
+datasets ALL THE TIME") — wanted something genuinely untouched. Found and downloaded historical
+LendingClub data (39,717 real US loans, resolved outcomes) via web search, a completely
+independent source. Built a balanced 300-row test batch (honesty ledger: age is NOT in US
+lending data, so it was imputed and flagged; the 12-month payment sequence was approximated from
+real aggregate delinquency fields, not a literal feed — everything else, including the ground
+truth, is real). Result: **AUC 0.5079** on `models_real` — no signal at all. User then asked for
+60-70% "accuracy" — had to correct this: on this imbalanced data, a naive "approve everyone"
+baseline already gets 91.9% accuracy, so a 60-70% accuracy target is actually WORSE than doing
+nothing. What they actually wanted was 60-70% *recall* (catch rate) — computed the real
+threshold-sweep table and let them pick an operating point from real numbers, not a vague
+promise. Applied a recall-target (~65%) threshold policy to `models_real`/`models_real_rich` at
+their explicit choice, with the real cost shown up front: auto-approve rate collapsed from 64%
+to 14% of applicants.
+
+### The generalization question — plan mode, adversarial critique, then build
+User then asked "what would it take to fix that" (the 0.51 AUC) and, after I showed the AUC was
+still ~0.51 even after quantile-matching income/debt scale to Home Credit's distribution (proving
+it wasn't a units problem), asked for a *generic* onboarding pipeline instead of one-off scripts,
+critiqued and planned first. Used `EnterPlanMode` + a `Plan`-type agent to adversarially review my
+own draft plan before writing any code — the critique agent caught real things I'd gotten wrong:
+no `recall_target` precedent actually existed in the training scripts (it was a manual JSON
+patch, not tested code — dropped a planned dual-policy flag as a result), a two-digit-year date
+bug in `earliest_cr_line` (confirmed 90 rows parsed to a date after loan issuance), a missing
+`loan_status` filter assertion, and that the registry's fingerprint function would hard-crash
+existing tests once a non-hybrid model dir was added (it was — fixed before it happened, not
+after). Built `src/train_new_market.py` (one file: engineer → train → calibrate → CV → fairness
+→ registry), trained `models_lendingclub` on it (plain XGBoost, deliberately no LSTM — this
+market has no real payment-sequence data, so building a fake one would inject fake signal, not
+real). Result: AUC 0.6608 (CV-stable 0.6577±0.0060), and the SAME 300 real applicants that broke
+`models_real` scored **AUC 0.7460** through the new model — the concrete proof that population-
+specific models are the actual fix, not a "better" universal architecture.
+
+### "Combine everything into one file" — pushed back on the notebooks, agreed on the scripts
+User asked to merge all 10 notebooks + all training scripts into one file "since that's more
+optimized." Pushed back explicitly: notebooks are 10 different concepts each with real rendered
+output, not duplicated code — merging would delete their reference value, not optimize anything.
+Agreed the 5 Home Credit training scripts (train_synth_model.py, train_real_data_model.py,
+train_real_rich_model.py, cross_validate_real.py, fairness_mitigation_real_rich.py) genuinely
+were ~90% duplicated structure across 3 variants and were worth consolidating. User said yes to
+the narrowed scope. Built `src/train_home_credit_models.py`, retrained all three variants, and
+**verified every model's artifact fingerprint was byte-for-byte identical to before** — proof the
+consolidation changed zero model behavior. In the process, found a real, unrelated bug: when the
+recall-target thresholds were applied to `models_real`/`models_real_rich` earlier this session,
+the config's `fairness_audit` and `metrics` sections were hand-patched for `thresholds` but never
+recomputed — they'd been silently describing the OLD cost-based decision boundary ever since.
+Honest current fairness numbers: models_real gender gap 0.0055 → **0.0617**, models_real_rich
+0.0454 → **0.0827** (same model, same test set, only the active threshold differs — verified
+directly by re-scoring at both thresholds). `models_real` also got 5-fold CV for the first time
+(it never had one before). Deleted the 5 superseded scripts; nothing outside that cluster
+imported them (verified via grep before deleting, not assumed).
+
+### Next: wire the validated fairness mitigation and one of the un-served models
+(`models_real_rich` or `models_lendingclub`) into actual production scoring — both are trained,
+validated, and registered, neither is servable through the current API without a new request
+schema. Re-verify the fairness-mitigation's ~77% relative-reduction claim against the newly
+corrected (larger) baseline gaps before relying on it.
