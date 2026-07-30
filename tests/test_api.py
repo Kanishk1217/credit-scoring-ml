@@ -261,8 +261,12 @@ def test_health_reports_registry_provenance(client):
     assert r["registered_at"] is not None
 
 
+def test_model_registry_requires_key(client):
+    assert client.get("/model-registry").status_code == 401
+
+
 def test_model_registry_endpoint_lists_all_known_models(client):
-    r = client.get("/model-registry")
+    r = client.get("/model-registry", headers=KEY)
     assert r.status_code == 200
     models = r.json()["models"]
     assert {"models", "models_real", "models_real_rich"} <= set(models.keys())

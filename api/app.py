@@ -268,9 +268,10 @@ def health():
 
 
 @app.get("/model-registry", tags=["health"])
-def model_registry():
+def model_registry(_key: ApiKey):
     """Full provenance catalog of every trained model directory -- data source, metrics,
-    fairness audit, and a content fingerprint of the actual trained artifacts."""
+    fairness audit, and a content fingerprint of the actual trained artifacts. Requires a key
+    (unlike `/`) since it exposes fairness-audit gaps and thresholds for internal-only models."""
     registry_path = ROOT / "model_registry.json"
     if not registry_path.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "model_registry.json not found")
