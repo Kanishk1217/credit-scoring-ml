@@ -45,3 +45,34 @@ def test_real_model_dir_serves_real_data_model():
     assert body["model_dir"] == "models_real"
     assert "REAL Home Credit" in body["data_source"]
     assert body["test_auc"] < 0.7   # honest, lower AUC of the real 7-feature model, not synthetic
+
+
+_DOCS_PROBE = """
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+from fastapi.testclient import TestClient
+from api.app import app
+with TestClient(app) as client:
+    print("PROBE_RESULT:" + str(client.get("/docs").status_code))
+"""
+
+
+def _docs_status_via_subprocess(environment: str) -> int:
+    env = {**os.environ, "CREDIT_ENVIRONMENT": environment, "CREDIT_API_KEYS": "testkey123"}
+    result = subprocess.run(
+        [sys.executable, "-c", _DOCS_PROBE], cwd=ROOT, env=env,
+        capture_output=True, text=True, timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    line = next(ln for ln in result.stdout.splitlines() if ln.startswith("PROBE_RESULT:"))
+    return int(line.removeprefix("PROBE_RESULT:"))
+
+
+def test_docs_disabled_in_production_even_if_enable_docs_left_default():
+    """Defense in depth: CREDIT_ENABLE_DOCS defaults true, but production must never expose
+    interactive docs even if that flag is forgotten in the deploy config."""
+    assert _docs_status_via_subprocess("production") == 404
+
+
+def test_docs_enabled_in_development():
+    assert _docs_status_via_subprocess("development") == 200

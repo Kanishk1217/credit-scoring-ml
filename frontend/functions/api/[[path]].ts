@@ -21,7 +21,15 @@ export const onRequest = async (context: any) => {
     body: method === 'GET' || method === 'HEAD' ? undefined : request.body,
   })
 
+  // Forward the backend's own security/observability headers through, not just content-type --
+  // this proxy previously dropped X-Content-Type-Options, X-Frame-Options, etc. on every response.
   const out = new Headers()
   out.set('content-type', resp.headers.get('content-type') || 'application/json')
+  const passthrough = ['x-content-type-options', 'x-frame-options', 'referrer-policy',
+    'cache-control', 'x-request-id']
+  for (const h of passthrough) {
+    const v = resp.headers.get(h)
+    if (v) out.set(h, v)
+  }
   return new Response(resp.body, { status: resp.status, headers: out })
 }

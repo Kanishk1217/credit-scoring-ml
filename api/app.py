@@ -85,11 +85,12 @@ def rate_key(request: Request) -> str:
 
 limiter = Limiter(key_func=rate_key, default_limits=[settings.rate_limit])
 
+_docs_enabled = settings.enable_docs and not settings.is_production
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     lifespan=lifespan,
-    docs_url="/docs" if settings.enable_docs else None,
+    docs_url="/docs" if _docs_enabled else None,
     redoc_url=None,
 )
 app.state.limiter = limiter
