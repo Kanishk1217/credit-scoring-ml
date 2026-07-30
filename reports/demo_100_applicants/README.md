@@ -6,8 +6,8 @@ calibration, or testing.
 
 ## Files
 - **`input_upload.csv`** — the batch exactly as a bank teller would upload it: one row per
-  applicant, the 6 static financial fields plus 12 months of payment status (`pay_0` oldest ..
-  `pay_11` most recent). This is the real input schema the API accepts.
+  applicant, the 6 static financial fields plus 12 months of payment status (`pay_1` oldest ..
+  `pay_12` most recent). This is the real input schema the API accepts.
 - **`model_results.csv`** — the model's output for each applicant (probability of default,
   recommendation, pricing offer, top explanatory factor), scored through the actual deployed
   `/predict/batch` endpoint. Includes one extra column,

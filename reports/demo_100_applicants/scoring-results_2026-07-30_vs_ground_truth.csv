@@ -1,0 +1,101 @@
+applicant_id,pd,band,recommendation,top_factor,top_factor_direction,offered_amount,apr,emi,actual_default,predicted_decline,outcome
+A001,0.0459,B,approve,Employment history,lowers,95000,0.1283,4509,0,0,correct_approve
+A002,0.1808,D,decline,Recent payment history,raises,0,0.1823,0,0,1,false_alarm
+A003,0.0898,C,review,Recent payment history,raises,145000,0.1459,7003,1,0,missed
+A004,0.0805,C,approve,Recent payment history,raises,204000,0.1422,9816,0,0,correct_approve
+A005,0.6049,E,decline,Recent payment history,raises,0,0.24,0,1,1,caught
+A006,0.0898,C,review,Recent payment history,raises,251000,0.1459,12122,0,0,correct_approve
+A007,0.0676,B,approve,Recent payment history,raises,245000,0.137,11729,0,0,correct_approve
+A008,0.0581,B,approve,Age,lowers,349000,0.1332,16645,0,0,correct_approve
+A009,0.0259,A,approve,Age,lowers,343000,0.1204,16152,0,0,correct_approve
+A010,0.3099,E,decline,Recent payment history,raises,0,0.2339,0,0,1,false_alarm
+A011,0.0898,C,review,Recent payment history,raises,236000,0.1459,11397,0,0,correct_approve
+A012,0.2043,D,decline,Recent payment history,raises,0,0.1917,0,0,1,false_alarm
+A013,0.1317,C,review,Recent payment history,raises,146000,0.1627,7167,1,0,missed
+A014,0.0741,C,approve,Recent payment history,raises,71000,0.1397,3408,0,0,correct_approve
+A015,0.0805,C,approve,Recent payment history,raises,93000,0.1422,4475,0,0,correct_approve
+A016,0.8562,E,decline,Recent payment history,raises,0,0.24,0,1,1,caught
+A017,0.0741,C,approve,Recent payment history,raises,98000,0.1397,4704,1,0,missed
+A018,0.0428,B,approve,Monthly income,lowers,250000,0.1271,11852,0,0,correct_approve
+A019,0.2303,D,decline,Recent payment history,raises,0,0.2021,0,1,1,caught
+A020,0.018,A,approve,Employment history,lowers,103000,0.1172,4835,0,0,correct_approve
+A021,0.2303,D,decline,Recent payment history,raises,0,0.2021,0,0,1,false_alarm
+A022,0.0898,C,review,Recent payment history,raises,168000,0.1459,8113,0,0,correct_approve
+A023,0.0554,B,approve,Employment history,raises,195000,0.1322,9291,0,0,correct_approve
+A024,0.1114,C,review,Recent payment history,raises,389000,0.1546,18946,0,0,correct_approve
+A025,0.2303,D,decline,Recent payment history,raises,0,0.2021,0,1,1,caught
+A026,0.2043,D,decline,Recent payment history,raises,0,0.1917,0,1,1,caught
+A027,0.1429,C,review,Recent payment history,raises,54000,0.1671,2662,0,0,correct_approve
+A028,0.1317,C,review,Recent payment history,raises,338000,0.1627,16593,1,0,missed
+A029,0.9399,E,decline,Recent payment history,raises,0,0.24,0,0,1,false_alarm
+A030,0.0574,B,approve,Recent payment history,raises,122000,0.1329,5817,0,0,correct_approve
+A031,0.0356,B,approve,Age,lowers,70000,0.1242,3309,0,0,correct_approve
+A032,0.1429,C,review,Recent payment history,raises,121000,0.1671,5966,0,0,correct_approve
+A033,0.031,B,approve,Employment history,lowers,252000,0.1224,11891,0,0,correct_approve
+A034,0.0459,B,approve,Number of existing loans,raises,132000,0.1283,6265,0,0,correct_approve
+A035,0.1489,C,review,Recent payment history,raises,379000,0.1696,18731,1,0,missed
+A036,0.0597,B,approve,Recent payment history,raises,58000,0.1339,2768,0,0,correct_approve
+A037,0.0,A,approve,Age,lowers,133000,0.11,6199,0,0,correct_approve
+A038,0.0581,B,approve,Recent payment history,raises,525000,0.1332,25039,0,0,correct_approve
+A039,0.2303,D,decline,Recent payment history,raises,0,0.2021,0,1,1,caught
+A040,0.0787,C,approve,Recent payment history,raises,367000,0.1415,17647,0,0,correct_approve
+A041,0.0581,B,approve,Recent payment history,raises,96000,0.1332,4579,1,0,missed
+A042,0.0259,A,approve,Employment history,lowers,83000,0.1204,3909,0,0,correct_approve
+A043,0.3099,E,decline,Recent payment history,raises,0,0.2339,0,0,1,false_alarm
+A044,0.3099,E,decline,Recent payment history,raises,0,0.2339,0,1,1,caught
+A045,0.2043,D,decline,Recent payment history,raises,0,0.1917,0,0,1,false_alarm
+A046,0.0898,C,review,Recent payment history,raises,266000,0.1459,12846,1,0,missed
+A047,0.031,B,approve,Age,lowers,150000,0.1224,7078,0,0,correct_approve
+A048,0.2075,D,decline,Recent payment history,raises,0,0.193,0,0,1,false_alarm
+A049,0.0741,C,approve,Recent payment history,raises,191000,0.1397,9167,0,0,correct_approve
+A050,0.0624,B,approve,Number of existing loans,raises,167000,0.135,7978,0,0,correct_approve
+A051,0.0356,B,approve,Credit limit,lowers,179000,0.1242,8462,0,0,correct_approve
+A052,0.1489,C,review,Recent payment history,raises,132000,0.1696,6524,1,0,missed
+A053,0.1317,C,review,Recent payment history,raises,176000,0.1627,8640,0,0,correct_approve
+A054,0.0732,C,approve,Recent payment history,raises,74000,0.1393,3550,0,0,correct_approve
+A055,0.1813,D,decline,Recent payment history,raises,0,0.1825,0,0,1,false_alarm
+A056,0.0898,C,review,Recent payment history,raises,381000,0.1459,18400,0,0,correct_approve
+A057,0.0741,C,approve,Recent payment history,raises,228000,0.1397,10943,0,0,correct_approve
+A058,0.0741,C,approve,Recent payment history,raises,130000,0.1397,6240,0,0,correct_approve
+A059,0.3099,E,decline,Recent payment history,raises,0,0.2339,0,1,1,caught
+A060,0.0,A,approve,Age,lowers,79000,0.11,3682,0,0,correct_approve
+A061,0.1328,C,review,Recent payment history,raises,120000,0.1631,5894,0,0,correct_approve
+A062,0.0581,B,approve,Recent payment history,raises,184000,0.1332,8776,0,0,correct_approve
+A063,0.0356,B,approve,Credit limit,lowers,40000,0.1242,1891,0,0,correct_approve
+A064,0.1539,D,review,Recent payment history,raises,66000,0.1716,3268,0,0,correct_approve
+A065,0.1813,D,decline,Recent payment history,raises,0,0.1825,0,1,1,caught
+A066,0.0459,B,approve,Credit limit,lowers,74000,0.1283,3512,0,0,correct_approve
+A067,0.2303,D,decline,Recent payment history,raises,0,0.2021,0,1,1,caught
+A068,0.0331,B,approve,Age,lowers,239000,0.1232,11287,0,0,correct_approve
+A069,0.0581,B,approve,Recent payment history,raises,64000,0.1332,3052,0,0,correct_approve
+A070,0.0468,B,approve,Monthly income,lowers,263000,0.1287,12488,0,0,correct_approve
+A071,0.1363,C,review,Recent payment history,raises,199000,0.1645,9787,0,0,correct_approve
+A072,0.0741,C,approve,Employment history,raises,172000,0.1397,8255,0,0,correct_approve
+A073,0.1813,D,decline,Recent payment history,raises,0,0.1825,0,0,1,false_alarm
+A074,0.0,A,approve,Age,lowers,174000,0.11,8110,0,0,correct_approve
+A075,0.1813,D,decline,Recent payment history,raises,0,0.1825,0,1,1,caught
+A076,0.2196,D,decline,Recent payment history,raises,0,0.1978,0,1,1,caught
+A077,0.1465,C,review,Recent payment history,raises,275000,0.1686,13578,0,0,correct_approve
+A078,0.1429,C,review,Recent payment history,raises,151000,0.1671,7445,1,0,missed
+A079,0.1813,D,decline,Recent payment history,raises,0,0.1825,0,1,1,caught
+A080,0.0,A,approve,Age,lowers,189000,0.11,8809,0,0,correct_approve
+A081,0.0581,B,approve,Credit limit,lowers,56000,0.1332,2671,0,0,correct_approve
+A082,0.131,C,review,Recent payment history,raises,69000,0.1624,3386,1,0,missed
+A083,0.0741,C,approve,Recent payment history,raises,220000,0.1397,10559,0,0,correct_approve
+A084,0.0418,B,approve,Employment history,lowers,112000,0.1267,5307,0,0,correct_approve
+A085,0.0741,C,approve,Recent payment history,raises,136000,0.1397,6528,0,0,correct_approve
+A086,0.1206,C,review,Recent payment history,raises,120000,0.1582,5865,0,0,correct_approve
+A087,0.0581,B,approve,Age,lowers,153000,0.1332,7297,0,0,correct_approve
+A088,0.0581,B,approve,Recent payment history,raises,45000,0.1332,2146,0,0,correct_approve
+A089,0.1368,C,review,Recent payment history,raises,190000,0.1647,9346,0,0,correct_approve
+A090,0.0581,B,approve,Recent payment history,raises,88000,0.1332,4197,0,0,correct_approve
+A091,0.0554,B,approve,Recent payment history,raises,39000,0.1322,1858,0,0,correct_approve
+A092,0.1317,C,review,Recent payment history,raises,188000,0.1627,9229,0,0,correct_approve
+A093,0.0581,B,approve,Employment history,lowers,256000,0.1332,12210,0,0,correct_approve
+A094,0.0433,B,approve,Age,lowers,235000,0.1273,11143,0,0,correct_approve
+A095,0.046,B,approve,Recent payment history,raises,92000,0.1284,4367,0,0,correct_approve
+A096,0.1594,D,review,Recent payment history,raises,239000,0.1738,11860,0,0,correct_approve
+A097,0.136,C,review,Recent payment history,raises,189000,0.1644,9294,0,0,correct_approve
+A098,0.3099,E,decline,Recent payment history,raises,0,0.2339,0,0,1,false_alarm
+A099,0.0433,B,approve,Age,lowers,295000,0.1273,13987,0,0,correct_approve
+A100,0.0,A,approve,Age,lowers,143000,0.11,6665,0,0,correct_approve
