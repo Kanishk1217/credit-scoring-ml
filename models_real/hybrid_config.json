@@ -423,8 +423,8 @@
     ]
   },
   "thresholds": {
-    "approve": 0.084,
-    "decline": 0.167
+    "approve": 0.0372,
+    "decline": 0.0745
   },
   "cost_ratio": 5.0,
   "feature_ranges": {
@@ -513,5 +513,14 @@
       "demographic_parity_gap": 0.0232,
       "equalized_odds_gap": 0.0137
     }
+  },
+  "threshold_policy": {
+    "method": "recall_target",
+    "target_recall": 0.65,
+    "previous_thresholds_cost_based_5to1": {
+      "approve": 0.084,
+      "decline": 0.167
+    },
+    "note": "Switched from cost-optimal (5:1) to a recall target per explicit business choice: catch 60-70% of defaulters, at the cost of overall accuracy and precision. See reports/real_data_model_report.md."
   }
 }

@@ -17,8 +17,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "model_registry.json"
-MODEL_DIRS = ["models", "models_real", "models_real_rich"]
-ARTIFACT_FILES = ["hybrid_xgb.joblib", "hybrid_fusion.npz"]
+MODEL_DIRS = ["models", "models_real", "models_real_rich", "models_lendingclub"]
+# Two config-file names are supported: "hybrid_config.json" for the XGBoost+LSTM hybrid models,
+# "model_config.json" for plain-tabular models with no sequence branch (e.g. models_lendingclub) --
+# naming a non-hybrid model's config "hybrid_config.json" would mislead a future reader.
+CONFIG_FILENAMES = ["hybrid_config.json", "model_config.json"]
 
 
 def _git_commit() -> str | None:
@@ -30,12 +33,23 @@ def _git_commit() -> str | None:
         return None
 
 
+def _find_config(model_dir: Path) -> Path | None:
+    for name in CONFIG_FILENAMES:
+        p = model_dir / name
+        if p.exists():
+            return p
+    return None
+
+
 def _fingerprint(model_dir: Path) -> str | None:
+    """Hash whichever trained-artifact files (.joblib / .npz) actually exist in this model
+    directory -- a hybrid model has an xgboost file plus a fusion-net file, a plain tabular model
+    (no sequence branch) has only the xgboost file. Returns None only if neither type is present."""
+    artifacts = sorted(model_dir.glob("*.joblib")) + sorted(model_dir.glob("*.npz"))
+    if not artifacts:
+        return None
     h = hashlib.sha256()
-    for name in ARTIFACT_FILES:
-        f = model_dir / name
-        if not f.exists():
-            return None
+    for f in artifacts:
         h.update(f.read_bytes())
     return f"sha256:{h.hexdigest()[:16]}"
 
@@ -48,8 +62,8 @@ def build(registered_at: str | None = None) -> dict:
 
     for name in MODEL_DIRS:
         model_dir = ROOT / name
-        cfg_path = model_dir / "hybrid_config.json"
-        if not cfg_path.exists():
+        cfg_path = _find_config(model_dir)
+        if cfg_path is None:
             continue
         cfg = json.loads(cfg_path.read_text())
         registry["models"][name] = {
