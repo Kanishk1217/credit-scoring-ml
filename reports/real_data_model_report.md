@@ -78,9 +78,11 @@ missing (56% / 0.2% / 20% missing respectively) rather than imputed, since XGBoo
 values natively and imputing a strong predictor risks injecting a fake signal.
 
 **Verified with proper 5-fold cross-validation, not a single lucky split**
-(`src/cross_validate_real.py`, full retrain of XGBoost + LSTM + fusion + calibration per fold,
-no leakage): AUC mean **0.7560**, std **0.0044**, range 0.7487–0.7614 across folds. Recall mean
-0.3674, std 0.0349. The 0.7564 single-split number is real and stable, not noise.
+(originally `src/cross_validate_real.py`, since consolidated into
+`src/train_home_credit_models.py` — see the correction below, full retrain of XGBoost + LSTM +
+fusion + calibration per fold, no leakage): AUC mean **0.7560**, std **0.0044**, range
+0.7487–0.7614 across folds. Recall mean 0.3674, std 0.0349. The 0.7564 single-split number is
+real and stable, not noise.
 
 For reference, the Home Credit Kaggle competition's winning solutions reached ~0.79–0.80 AUC using
 hundreds of engineered features across all 7 tables plus heavy stacking/ensembling. 0.756 with 38
@@ -118,7 +120,8 @@ But the **equalized-odds gap** (TPR-on-good-borrowers, which conditions on actua
 isolates the part of the disparity NOT explained by differing base rates) was still substantial:
 0.0344 for gender, 0.0775 for region. That residual is the part worth fixing.
 
-**Mitigation tested** (`src/fairness_mitigation_real_rich.py`, no retraining — reuses the saved
+**Mitigation tested** (originally `src/fairness_mitigation_real_rich.py`, since consolidated into
+`src/train_home_credit_models.py` — see the correction below; no retraining — reuses the saved
 `models_real_rich/` artifacts): replace the single global decline threshold with a per-group
 threshold chosen to equalize each group's TPR-on-good-borrowers to the population-wide rate.
 
@@ -206,3 +209,33 @@ Also worth flagging plainly: at the time of this audit, the actual deployed Rend
 still defaulting to `CREDIT_MODEL_DIR=models` (synthetic) — meaning the live `/officer` and
 `/advisor` pages were demonstrating on synthetic data, not the real Home Credit model this whole
 phase was built to validate, until this is corrected.
+
+## Correction: the fairness numbers above for `models_real`/`models_real_rich` were stale
+
+Found while consolidating `train_real_data_model.py`, `train_real_rich_model.py`,
+`cross_validate_real.py`, and `fairness_mitigation_real_rich.py` into
+`src/train_home_credit_models.py` (see `docs/model_creation_summary.md`). When the decision
+thresholds were switched from cost-based (5:1) to a 65%-recall target earlier in this session,
+the `hybrid_config.json` files were hand-patched directly (`thresholds` and a new
+`threshold_policy` key) — but `fairness_audit` and `metrics` were never recomputed against the
+new threshold. Every fairness number quoted above (gender 0.0055 for `models_real`, 0.0454 for
+`models_real_rich`) was computed under the **old** cost-based decline threshold, not the one
+that's actually been live ever since.
+
+Verified directly, same model, same test set, only the threshold changed:
+
+| | Old cost-based threshold (0.167) | Threshold actually active (0.075) |
+|---|---|---|
+| `models_real` gender approval rates | 0.9452 / 0.9397 | 0.6176 / 0.5559 |
+| `models_real` gender demographic-parity gap | 0.0055 | **0.0617** |
+
+The honest, current numbers: `models_real` gender gap 0.0617 (region 0.0481), `models_real_rich`
+gender gap 0.0827 (region 0.2026) — both meaningfully larger than what was reported above. This
+makes sense mechanically: the recall-target threshold declines ~40% of applicants instead of
+~6%, so far more borderline cases are exposed to whatever differential exists between groups.
+**The trained models themselves did not change** — every artifact fingerprint in
+`model_registry.json` is byte-for-byte identical to before this correction — only the fairness
+audit's honesty about the threshold actually in use did. The per-group threshold-equalization
+mitigation described in this report was validated against the *old, understated* gap sizes; its
+~77% relative-reduction claim should be re-verified against these corrected, larger baseline gaps
+before being relied on, not assumed to still hold at the same percentage.

@@ -5,11 +5,10 @@ model registry entry, in one run.
 
 Concrete first instance: historical LendingClub (US) loans, 2007-2011, resolved outcomes only.
 
-Why this project has THREE prior scattered files (build_real_data_rich.py, train_real_rich_model.py,
-cross_validate_real.py) for the Home Credit model but this is ONE file: those three each did one
-job well, but adding a fourth real-world market meant either copy-pasting three more files or
-consolidating the actually-reusable shape (load -> engineer -> train/calibrate -> cross-validate ->
-evaluate -> register) into one script that a future market can extend, not clone.
+This mirrors src/train_home_credit_models.py, which does the equivalent consolidation for the
+three Home Credit-family models (synthetic/real/real_rich) -- both replace what used to be
+several scattered per-model scripts with one file per data-source family that a future market or
+model can extend, not clone.
 
 Architecture note -- read this before assuming the hybrid XGBoost+LSTM architecture should be
 reused: that model's LSTM branch exists specifically to read a genuine month-by-month payment
@@ -161,7 +160,7 @@ def engineer_features(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str], str]:
 
 def _split_indices(y: np.ndarray, seed: int = SEED):
     """Train 55% / val 15% / cal 15% / test 15%, stratified -- matches this project's existing
-    4-way split convention (see train_real_data_model.py)."""
+    4-way split convention (see src/train_home_credit_models.py)."""
     idx = np.arange(len(y))
     i_tr, i_tmp = train_test_split(idx, test_size=0.45, stratify=y, random_state=seed)
     i_val, i_tmp2 = train_test_split(i_tmp, test_size=0.667, stratify=y[i_tmp], random_state=seed)

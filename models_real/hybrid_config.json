@@ -423,10 +423,15 @@
     ]
   },
   "thresholds": {
-    "approve": 0.0372,
-    "decline": 0.0745
+    "approve": 0.037,
+    "decline": 0.075
   },
   "cost_ratio": 5.0,
+  "threshold_policy": {
+    "method": "recall_target",
+    "note": "Recall-target policy: catch ~65% of defaulters, per explicit business choice. See reports/real_data_model_report.md.",
+    "target_recall": 0.65
+  },
   "feature_ranges": {
     "age": {
       "min": 22.564383561643837,
@@ -467,6 +472,9 @@
   "metrics": {
     "test_auc": 0.6654,
     "test_brier": 0.0728,
+    "test_accuracy": 0.6181,
+    "test_precision": 0.1261,
+    "test_recall": 0.6248,
     "test_default_rate": 0.0812,
     "test_mean_predicted_pd": 0.0818
   },
@@ -475,52 +483,52 @@
       "by_group": {
         "F": {
           "n": 17070,
-          "approval_rate": 0.9452,
-          "tpr_good_approved": 0.9517,
-          "fpr_bad_approved": 0.8598
+          "approval_rate": 0.6176,
+          "tpr_good_approved": 0.6353,
+          "fpr_bad_approved": 0.3831
         },
         "M": {
           "n": 8010,
-          "approval_rate": 0.9397,
-          "tpr_good_approved": 0.9481,
-          "fpr_bad_approved": 0.8675
+          "approval_rate": 0.5559,
+          "tpr_good_approved": 0.5784,
+          "fpr_bad_approved": 0.364
         }
       },
-      "demographic_parity_gap": 0.0055,
-      "equalized_odds_gap": 0.0036
+      "demographic_parity_gap": 0.0617,
+      "equalized_odds_gap": 0.0569
     },
     "region": {
       "by_group": {
         "1": {
           "n": 2570,
-          "approval_rate": 0.9549,
-          "tpr_good_approved": 0.957,
-          "fpr_bad_approved": 0.9127
+          "approval_rate": 0.6296,
+          "tpr_good_approved": 0.6395,
+          "fpr_bad_approved": 0.4365
         },
         "2": {
           "n": 18383,
-          "approval_rate": 0.9445,
-          "tpr_good_approved": 0.9512,
-          "fpr_bad_approved": 0.8665
+          "approval_rate": 0.5971,
+          "tpr_good_approved": 0.6161,
+          "fpr_bad_approved": 0.3765
         },
         "3": {
           "n": 4127,
-          "approval_rate": 0.9317,
-          "tpr_good_approved": 0.9433,
-          "fpr_bad_approved": 0.8381
+          "approval_rate": 0.5815,
+          "tpr_good_approved": 0.6098,
+          "fpr_bad_approved": 0.3545
         }
       },
-      "demographic_parity_gap": 0.0232,
-      "equalized_odds_gap": 0.0137
+      "demographic_parity_gap": 0.0481,
+      "equalized_odds_gap": 0.0297
     }
   },
-  "threshold_policy": {
-    "method": "recall_target",
-    "target_recall": 0.65,
-    "previous_thresholds_cost_based_5to1": {
-      "approve": 0.084,
-      "decline": 0.167
-    },
-    "note": "Switched from cost-optimal (5:1) to a recall target per explicit business choice: catch 60-70% of defaulters, at the cost of overall accuracy and precision. See reports/real_data_model_report.md."
+  "cross_validation": {
+    "n_folds": 5,
+    "auc_mean": 0.665,
+    "auc_std": 0.003,
+    "auc_min": 0.662,
+    "auc_max": 0.6703,
+    "recall_mean": 0.6563,
+    "recall_std": 0.0303
   }
 }

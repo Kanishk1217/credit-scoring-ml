@@ -62,8 +62,8 @@ population" as a question to actually test, not assume.
 
 | Model | Data | Test AUC | 5-fold CV AUC | Notes |
 |---|---|---|---|---|
-| `models_real` | Real Home Credit, 7 self-reportable features | 0.665 | — | intended for public API / `/advisor` |
-| `models_real_rich` | Real Home Credit, 38 features (+ bureau history) | 0.756 | 0.7560 ± 0.0044 | not yet servable — needs a bureau-data lookup |
+| `models_real` | Real Home Credit, 7 self-reportable features | 0.665 | 0.6650 ± 0.0030 | intended for public API / `/advisor` |
+| `models_real_rich` | Real Home Credit, 38 features (+ bureau history) | 0.756 | 0.7554 ± 0.0047 | not yet servable — needs a bureau-data lookup |
 | `models_lendingclub` | Real historical US LendingClub loans, 34 features | 0.661 | 0.6577 ± 0.0060 | trained via the generic onboarding script below |
 
 **The honest, load-bearing finding**: `models_real` was tested against LendingClub's real,
@@ -110,8 +110,9 @@ content fingerprint (sha256 of the actual trained artifacts, not the config) and
 uv sync
 
 # 2. (optional) retrain the model from scratch — one script, torch used for training only
-uv run python src/train_synth_model.py
+uv run python src/train_home_credit_models.py --variant synthetic
 #   -> models/hybrid_xgb.joblib, hybrid_fusion.npz (torch-free weights), hybrid_config.json
+#   --variant real | real_rich trains the real-Home-Credit variants the same way
 
 # 3. configure and run the API
 cp .env.example .env        # then set CREDIT_API_KEYS to your own key(s)
@@ -165,7 +166,8 @@ see `frontend/.env.example` for the full setup, including enabling Google sign-i
 ## Project structure
 ```
 api/          FastAPI app, config, and scoring business logic (the deployable service)
-src/          model definitions, training scripts (train_synth_model.py, train_new_market.py), data loaders
+src/          model definitions; training scripts (train_home_credit_models.py covers all 3
+              Home Credit-family models, train_new_market.py for a new real-world market), data loaders
 models/, models_real/, models_real_rich/, models_lendingclub/
               saved model artifacts, one directory per model (registry: model_registry.json)
 notebooks/    01-09: the full learning journey, EDA -> hybrid; 10: new-market onboarding (LendingClub)

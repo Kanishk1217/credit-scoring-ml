@@ -1,5 +1,6 @@
 {
   "data_source": "SYNTHETIC (src/synth_data.py)",
+  "n_total": 150000,
   "static_cols": [
     "age",
     "monthly_income",
@@ -426,6 +427,10 @@
     "decline": 0.158
   },
   "cost_ratio": 5.0,
+  "threshold_policy": {
+    "method": "cost_based",
+    "note": "Cost-optimal threshold, 5:1 cost ratio."
+  },
   "feature_ranges": {
     "age": {
       "min": 21.0,
@@ -466,6 +471,9 @@
   "metrics": {
     "test_auc": 0.8923,
     "test_brier": 0.1008,
+    "test_accuracy": 0.7712,
+    "test_precision": 0.4934,
+    "test_recall": 0.8651,
     "test_default_rate": 0.2236,
     "test_mean_predicted_pd": 0.2198
   },
@@ -524,5 +532,14 @@
       "demographic_parity_gap": 0.015,
       "equalized_odds_gap": 0.0262
     }
+  },
+  "cross_validation": {
+    "n_folds": 5,
+    "auc_mean": 0.887,
+    "auc_std": 0.0024,
+    "auc_min": 0.8841,
+    "auc_max": 0.8904,
+    "recall_mean": 0.8534,
+    "recall_std": 0.0031
   }
 }

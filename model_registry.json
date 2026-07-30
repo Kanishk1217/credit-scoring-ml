@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-07-30T08:54:38+00:00",
-  "git_commit": "357e872f497b7117acebb2e5e4644c5954266483",
+  "generated_at": "2026-07-30T11:05:04+00:00",
+  "git_commit": "d021343925a0333ff4482a70088d4e28c2f1019a",
   "models": {
     "models": {
       "data_source": "SYNTHETIC (src/synth_data.py)",
-      "n_total": null,
+      "n_total": 150000,
       "static_feature_count": 7,
       "seq_len": 12,
       "thresholds": {
@@ -14,6 +14,9 @@
       "metrics": {
         "test_auc": 0.8923,
         "test_brier": 0.1008,
+        "test_accuracy": 0.7712,
+        "test_precision": 0.4934,
+        "test_recall": 0.8651,
         "test_default_rate": 0.2236,
         "test_mean_predicted_pd": 0.2198
       },
@@ -22,8 +25,8 @@
         "region": 0.015
       },
       "fingerprint": "sha256:96bfafc0bbee973f",
-      "registered_at": "2026-07-30T08:54:38+00:00",
-      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
+      "registered_at": "2026-07-30T11:05:04+00:00",
+      "git_commit": "d021343925a0333ff4482a70088d4e28c2f1019a"
     },
     "models_real": {
       "data_source": "REAL Home Credit (application_train + bureau + installments_payments)",
@@ -31,22 +34,25 @@
       "static_feature_count": 7,
       "seq_len": 12,
       "thresholds": {
-        "approve": 0.0372,
-        "decline": 0.0745
+        "approve": 0.037,
+        "decline": 0.075
       },
       "metrics": {
         "test_auc": 0.6654,
         "test_brier": 0.0728,
+        "test_accuracy": 0.6181,
+        "test_precision": 0.1261,
+        "test_recall": 0.6248,
         "test_default_rate": 0.0812,
         "test_mean_predicted_pd": 0.0818
       },
       "fairness_audit": {
-        "gender": 0.0055,
-        "region": 0.0232
+        "gender": 0.0617,
+        "region": 0.0481
       },
       "fingerprint": "sha256:4bc1e4bfb51222a2",
-      "registered_at": "2026-07-30T08:54:38+00:00",
-      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
+      "registered_at": "2026-07-30T11:05:04+00:00",
+      "git_commit": "d021343925a0333ff4482a70088d4e28c2f1019a"
     },
     "models_real_rich": {
       "data_source": "REAL Home Credit, ENRICHED (all 7 tables: application, bureau, bureau_balance, previous_application, POS_CASH_balance, credit_card_balance, installments_payments)",
@@ -60,19 +66,19 @@
       "metrics": {
         "test_auc": 0.7564,
         "test_brier": 0.0683,
-        "test_accuracy": 0.868,
-        "test_precision": 0.2679,
-        "test_recall": 0.361,
+        "test_accuracy": 0.7276,
+        "test_precision": 0.1757,
+        "test_recall": 0.638,
         "test_default_rate": 0.0812,
         "test_mean_predicted_pd": 0.0813
       },
       "fairness_audit": {
-        "gender": 0.0454,
-        "region": 0.1026
+        "gender": 0.0827,
+        "region": 0.2026
       },
       "fingerprint": "sha256:f1d96529edd20617",
-      "registered_at": "2026-07-30T08:54:38+00:00",
-      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
+      "registered_at": "2026-07-30T11:05:04+00:00",
+      "git_commit": "d021343925a0333ff4482a70088d4e28c2f1019a"
     },
     "models_lendingclub": {
       "data_source": "REAL LendingClub historical loans (2007-2011, resolved outcomes only) -- market=lendingclub",
@@ -103,8 +109,8 @@
         "region": 0.0857
       },
       "fingerprint": "sha256:17eaab39d4b5a52f",
-      "registered_at": "2026-07-30T08:54:38+00:00",
-      "git_commit": "357e872f497b7117acebb2e5e4644c5954266483"
+      "registered_at": "2026-07-30T11:05:04+00:00",
+      "git_commit": "d021343925a0333ff4482a70088d4e28c2f1019a"
     }
   }
 }

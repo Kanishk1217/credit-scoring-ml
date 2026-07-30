@@ -14,14 +14,27 @@ here is typed from memory).
 | Architecture | XGBoost + LSTM hybrid | XGBoost + LSTM hybrid | XGBoost + LSTM hybrid | **Plain XGBoost, no LSTM** |
 | Features | 7 static + 12-month sequence | 7 static + 12-month sequence | 38 static + 12-month sequence | 34 static, no sequence |
 | Test AUC | 0.8923 | 0.6654 | 0.7564 | 0.6608 |
-| 5-fold CV AUC | 0.8872 ± 0.0024 | — | 0.7560 ± 0.0044 | 0.6577 ± 0.0060 |
-| Test recall | — | 0.137 | 0.361 | 0.3957 |
-| Test precision | — | 0.197 | 0.268 | 0.2599 |
-| Test accuracy | — | 0.885 | 0.868 | 0.7477 |
-| Decline threshold | 0.158 | 0.0745 | 0.086 | 0.167 |
-| Fairness gap (primary) | gender 0.000 | gender 0.0055 | gender 0.0454 | region 0.0857 |
+| 5-fold CV AUC | 0.8870 ± 0.0024 | 0.6650 ± 0.0030 | 0.7554 ± 0.0047 | 0.6577 ± 0.0060 |
+| Test recall | 0.865 | 0.625 | 0.638 | 0.3957 |
+| Test precision | 0.493 | 0.126 | 0.176 | 0.2599 |
+| Test accuracy | 0.771 | 0.618 | 0.728 | 0.7477 |
+| Decline threshold | 0.158 (cost-based 5:1) | 0.075 (65% recall target) | 0.086 (65% recall target) | 0.167 (cost-based 5:1) |
+| Fairness gap (primary) | gender 0.000 | gender 0.0617 | gender 0.0827 | region 0.0857 |
 | Fingerprint | `sha256:96bfafc0bbee973f` | `sha256:4bc1e4bfb51222a2` | `sha256:f1d96529edd20617` | `sha256:17eaab39d4b5a52f` |
 | Intended use | dev/demo only | public API / `/advisor` | internal `/officer` (not yet servable — see below) | not yet wired into serving |
+
+**Correction to numbers previously published here**: `models_real`'s and `models_real_rich`'s
+recall/precision/accuracy and fairness gaps above are substantially different from earlier
+versions of this doc (e.g. gender gap was reported as 0.0055/0.0454 before, now 0.0617/0.0827).
+This is not new drift — it's a stale-number bug this consolidation found and fixed. When the
+decision thresholds were switched from cost-based to a 65%-recall target earlier this session,
+the config files' `thresholds` were hand-patched directly, but the `fairness_audit` and
+`metrics` sections were never recomputed against the new threshold — they were silently left
+describing the *old* cost-based decision boundary. Verified directly: re-scoring the same test
+set at the old threshold (0.167) reproduces the old 0.0055 gender gap exactly; at the threshold
+actually active today (0.075) it's 0.0617. The trained model itself never changed (every
+fingerprint above is byte-for-byte identical to before this consolidation) — only the honesty of
+what was reported about it did.
 
 ## Why four models, not one
 
@@ -83,11 +96,14 @@ dimension is actually available and is explicit about its limits:
   (Midwest n=860, Northeast n=1419, South n=1884, West n=1627 — all comfortably above threshold
   for this run).
 
-The known open item from earlier this session: `models_real_rich`'s fairness gap (gender 0.0454,
-region 0.1026) is substantially wider than `models_real`'s, traced to EXT_SOURCE features
-correlating with real base-rate differences by gender/region. A per-group threshold mitigation
-was tested and cuts the unexplained (equalized-odds) portion of that gap ~77% at under 1.5 points
-of recall cost — validated, but not yet wired into production scoring. See
+The known open item from earlier this session: `models_real_rich`'s fairness gap (gender 0.0827,
+region 0.2026, current honest numbers) is substantially wider than `models_real`'s (gender 0.0617,
+region 0.0481), traced to EXT_SOURCE features correlating with real base-rate differences by
+gender/region. A per-group threshold mitigation was tested (on the gap sizes measured under the
+old cost-based threshold, before this consolidation corrected the numbers above to reflect the
+actual active recall-target threshold — the mitigation's ~77% relative reduction claim should be
+re-verified against these corrected baseline gaps, not assumed to still hold at the same
+percentage). Validated in principle, not yet wired into production scoring. See
 `reports/real_data_model_report.md` for the full numbers.
 
 ## What's out of scope, deliberately
@@ -111,9 +127,7 @@ flowchart LR
     end
 
     subgraph Pipelines["Training pipelines"]
-        P1["train_synth_model.py"]
-        P2["train_real_data_model.py"]
-        P3["train_real_rich_model.py"]
+        P123["train_home_credit_models.py\n--variant synthetic|real|real_rich"]
         P4["train_new_market.py\n(generic onboarding)"]
     end
 
@@ -126,9 +140,9 @@ flowchart LR
 
     REG[(model_registry.json\nfingerprint + metrics + fairness)]
 
-    SY --> P1 --> M1
-    HC --> P2 --> M2
-    HC --> P3 --> M3
+    SY --> P123 --> M1
+    HC --> P123 --> M2
+    HC --> P123 --> M3
     LC --> P4 --> M4
 
     M1 & M2 & M3 & M4 --> REG
@@ -156,14 +170,43 @@ flowchart TD
     J --> K["save_model() + build_registry()\nwrites models_<market>/, updates\nmodel_registry.json"]
 ```
 
+## The Home Credit-family scripts were also consolidated, the same way
+
+`src/train_home_credit_models.py` replaces five previously-scattered files
+(`train_synth_model.py`, `train_real_data_model.py`, `train_real_rich_model.py`,
+`cross_validate_real.py`, `fairness_mitigation_real_rich.py`) that shared almost identical
+structure — same 4-way split, same XGBoost-OOF-then-LSTM-fusion approach, same isotonic
+calibration — with only the feature set and a few hyperparameters differing per variant. It's a
+faithful consolidation, not a rewrite: every hyperparameter and threshold-search range was copied
+from the script it replaces, and every one of the three retrained models' artifact fingerprints
+(above) is byte-for-byte identical to what existed before the consolidation — proof this changed
+zero model behavior. What it did change: it exposed and fixed the stale-fairness-number bug
+described above, and it added 5-fold cross-validation for `models_real` for the first time (it
+previously had none — only `models_real_rich` had a CV script).
+
+Deliberately **not** folded into that file either: `src/synth_data.py`, `src/build_real_data.py`,
+`src/build_real_data_rich.py` (each variant's genuinely distinct data builder — still imported
+from the consolidated script, not duplicated, and `synth_data.py` is also imported directly by
+`tests/test_scoring.py` and `tests/test_drift_monitor.py`), and `src/hybrid_model.py` (the shared
+architecture class). The 10 Jupyter notebooks were also left alone on purpose — they're not
+duplicated code, they're 10 different concepts with their own real charts and output; merging
+them into a script would delete what makes them useful as a reference, not "optimize" anything.
+
 ## Reproducing this
 
 ```bash
+# Home Credit family (synthetic / real / real_rich)
+uv run python src/train_home_credit_models.py --variant synthetic
+uv run python src/train_home_credit_models.py --variant real
+uv run python src/train_home_credit_models.py --variant real_rich
+# or all three: --variant all   (each call also regenerates model_registry.json)
+
+# LendingClub
 uv run python src/train_new_market.py data/raw/lendingclub/loan.csv --market lendingclub
 uv run python src/build_model_registry.py   # regenerate the registry from scratch
 uv run pytest tests/test_train_new_market.py -v
 ```
 
-The full walkthrough with plots (confusion matrix heatmap, ROC curve, calibration reliability,
-CV boxplot, fairness table) is in `notebooks/10_new_market_onboarding.ipynb` — executed, not
-hand-authored, so every number and plot in it is real output from an actual run.
+The full LendingClub walkthrough with plots (confusion matrix heatmap, ROC curve, calibration
+reliability, CV boxplot, fairness table) is in `notebooks/10_new_market_onboarding.ipynb` —
+executed, not hand-authored, so every number and plot in it is real output from an actual run.
