@@ -76,3 +76,40 @@ def test_docs_disabled_in_production_even_if_enable_docs_left_default():
 
 def test_docs_enabled_in_development():
     assert _docs_status_via_subprocess("development") == 200
+
+
+_STARTUP_PROBE = """
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+from fastapi.testclient import TestClient
+from api.app import app
+try:
+    with TestClient(app):
+        print("PROBE_RESULT:started")
+except RuntimeError as e:
+    print("PROBE_RESULT:" + str(e))
+"""
+
+
+def _startup_result_via_subprocess(model_dir: str) -> str:
+    env = {**os.environ, "CREDIT_MODEL_DIR": model_dir, "CREDIT_API_KEYS": "testkey123"}
+    result = subprocess.run(
+        [sys.executable, "-c", _STARTUP_PROBE], cwd=ROOT, env=env,
+        capture_output=True, text=True, timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    line = next(ln for ln in result.stdout.splitlines() if ln.startswith("PROBE_RESULT:"))
+    return line.removeprefix("PROBE_RESULT:")
+
+
+def test_rich_model_fails_fast_at_startup_not_on_first_request():
+    """models_real_rich needs 31 features (EXT_SOURCE, bureau aggregates) this API has no way
+    to supply from the request schemas -- must fail loudly at startup, not 500 on every score."""
+    result = _startup_result_via_subprocess("models_real_rich")
+    assert result != "started"
+    assert "ext_source_1" in result
+
+
+def test_servable_models_start_fine():
+    assert _startup_result_via_subprocess("models") == "started"
+    assert _startup_result_via_subprocess("models_real") == "started"

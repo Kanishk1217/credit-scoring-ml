@@ -180,3 +180,29 @@ for whichever model is currently loaded, and a new `GET /model-registry` returns
 it built" is answerable without SSH access or tribal knowledge. Rerun
 `uv run python src/build_model_registry.py` after training any new model variant to keep the
 registry current; it is not auto-generated on every request.
+
+## Correction: `models_real_rich` cannot actually be served yet — found in a full audit
+
+The earlier claim that `models_real_rich/` is "reserved for the internal loan-officer dashboard"
+was aspirational and never actually wired up. Verified directly: setting `CREDIT_MODEL_DIR=
+models_real_rich` and calling `/score` with the officer dashboard's real payload throws
+`KeyError: 'ext_source_1'` and returns a 500 — every scoring request would fail in this
+configuration. Root cause: `scoring.build_static_row()` only knows how to compute the base
+7 fields (age, income, credit limit, debt, employment, loan count, DTI); it has no path to
+supply the other 31 features (`ext_source_1/2/3`, bureau/POS/credit-card/installment
+aggregates) the rich model expects, and the officer dashboard's form only collects the base 7
+— there's no bureau-data lookup service behind it to source the rest.
+
+**Corrected recommendation: deploy `CREDIT_MODEL_DIR=models_real` for both `/officer` and
+`/advisor`.** It's the only real (non-synthetic) model actually compatible with the forms as
+built — verified working end-to-end on both `/score` and `/self-assessment` (0.665 AUC, honest,
+real Home Credit data). `models_real_rich` (0.756 AUC) stays a real, validated result and a
+legitimate future upgrade, but using it in production would require either a real bureau-data
+lookup integration behind the officer dashboard (a genuinely separate project, not a config
+flip) or extending the form with 31 more manually-entered fields, which isn't good UX for a
+loan officer. Neither exists today, so it isn't safe to point production at it.
+
+Also worth flagging plainly: at the time of this audit, the actual deployed Render service was
+still defaulting to `CREDIT_MODEL_DIR=models` (synthetic) — meaning the live `/officer` and
+`/advisor` pages were demonstrating on synthetic data, not the real Home Credit model this whole
+phase was built to validate, until this is corrected.

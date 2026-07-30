@@ -58,6 +58,23 @@ STATE: dict = {}
 async def lifespan(app: FastAPI):
     model_dir = ROOT / settings.model_dir
     STATE["cfg"] = json.loads((model_dir / "hybrid_config.json").read_text())
+
+    # Fail fast, not on the first real request: every serving path here (predict/score/
+    # self-assessment) can only supply the base 7 applicant fields (+ derived debt_to_income).
+    # A model trained on additional features (e.g. models_real_rich's EXT_SOURCE/bureau columns)
+    # would otherwise pass startup fine and then 500 on every single scoring call.
+    computable = {
+        "age", "monthly_income", "credit_limit", "existing_debt",
+        "debt_to_income", "employment_years", "num_existing_loans",
+    }
+    unsupported = set(STATE["cfg"].get("static_cols", [])) - computable
+    if unsupported:
+        raise RuntimeError(
+            f"CREDIT_MODEL_DIR={settings.model_dir!r} needs features this API has no way to "
+            f"supply from the current request schema: {sorted(unsupported)}. This model isn't "
+            f"servable through /predict, /score, or /self-assessment as they're currently built."
+        )
+
     STATE["xgb"] = joblib.load(model_dir / "hybrid_xgb.joblib")
     STATE["net"] = NumpyHybrid(model_dir / "hybrid_fusion.npz", STATE["cfg"]["lstm_hidden"])
 
