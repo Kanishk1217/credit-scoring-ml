@@ -53,7 +53,7 @@ export default function SelfAssessmentPage() {
     <div className="min-h-screen bg-bg">
       <header className="border-b border-line">
         <div className="mx-auto max-w-2xl px-6 py-5">
-          <span className="font-display text-base font-600 tracking-tight text-ink">Agility</span>
+          <a href="/" className="font-display text-base font-600 tracking-tight text-ink">creditscore</a>
         </div>
       </header>
       <main className="mx-auto max-w-2xl px-6 py-16">

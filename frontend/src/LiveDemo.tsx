@@ -88,7 +88,7 @@ export default function LiveDemo() {
 
         <div className="border-t border-line pt-6">
           {error ? (
-            <p className="text-sm text-danger">Start the scoring API on :8077.</p>
+            <p className="text-sm text-danger">Live demo is temporarily unavailable — try again shortly.</p>
           ) : (
             <>
               <div className="flex items-end justify-between">

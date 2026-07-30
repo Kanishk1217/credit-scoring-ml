@@ -8,7 +8,7 @@ function TopBar() {
   return (
     <header className="border-b border-line bg-bg">
       <div className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-4 md:px-10">
-        <span className="font-display text-base font-600 tracking-tight text-ink">Agility</span>
+        <a href="/" className="font-display text-base font-600 tracking-tight text-ink">creditscore</a>
         <div className="flex items-center gap-3 text-sm text-ink/55">
           <span>Loan officer</span>
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" title="API key configured" />

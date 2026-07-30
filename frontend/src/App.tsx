@@ -83,6 +83,8 @@ function Nav() {
           <a href="#how" className="transition-colors hover:text-ink">how it works</a>
           <a href="#caps" className="transition-colors hover:text-ink">capabilities</a>
           <a href="#output" className="transition-colors hover:text-ink">the output</a>
+          <a href="/officer" className="transition-colors hover:text-ink">officer dashboard</a>
+          <a href="/advisor" className="transition-colors hover:text-ink">advisor</a>
         </nav>
         <a href="#cta" className="group inline-flex items-center gap-1 text-sm font-500 text-ink">
           get access
