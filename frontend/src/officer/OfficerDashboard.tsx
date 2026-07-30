@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import SingleView from './SingleView'
 import BatchView from './BatchView'
+import { useAuth } from '../auth/AuthContext'
 
 type Tab = 'single' | 'batch'
 
 function TopBar() {
+  const { user, signOut } = useAuth()
   return (
     <header className="border-b border-line bg-bg">
       <div className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-4 md:px-10">
@@ -12,6 +14,15 @@ function TopBar() {
         <div className="flex items-center gap-3 text-sm text-ink/55">
           <span>Loan officer</span>
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" title="API key configured" />
+          {user && (
+            <>
+              <span className="text-ink/25">·</span>
+              <span>{user.email}</span>
+              <button onClick={() => void signOut()} className="text-ink/55 transition-colors hover:text-ink">
+                Sign out
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

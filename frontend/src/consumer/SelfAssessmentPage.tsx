@@ -5,6 +5,7 @@ import { assess, ApiError } from './api'
 import AssessmentForm from './AssessmentForm'
 import ResultsView from './ResultsView'
 import { COPY } from './copy'
+import { useAuth } from '../auth/AuthContext'
 
 function isValid(p: Profile): boolean {
   return p.monthly_income > 0 && p.age >= 18 && p.age <= 80
@@ -36,6 +37,7 @@ export default function SelfAssessmentPage() {
   const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE)
   const [data, setData] = useState<AssessResponse | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const { user, signOut } = useAuth()
 
   async function submit() {
     setState('submitting')
@@ -52,8 +54,14 @@ export default function SelfAssessmentPage() {
   return (
     <div className="min-h-screen bg-bg">
       <header className="border-b border-line">
-        <div className="mx-auto max-w-2xl px-6 py-5">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-5">
           <a href="/" className="font-display text-base font-600 tracking-tight text-ink">creditscore</a>
+          {user && (
+            <div className="flex items-center gap-3 text-sm text-ink/55">
+              <span>{user.email}</span>
+              <button onClick={() => void signOut()} className="transition-colors hover:text-ink">Sign out</button>
+            </div>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-2xl px-6 py-16">

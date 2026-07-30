@@ -109,7 +109,12 @@ Backend: containerized (`Dockerfile`, torch-free at serve time — fits a free 5
 deployed to Render (`render.yaml`). Frontend: `frontend/` deploys to Cloudflare Pages, whose
 `functions/api/[[path]].ts` proxies to the backend and injects the API key server-side so the
 browser never holds it. Set `CREDIT_API_KEYS` (backend) and `BACKEND_URL`/`API_KEY` (frontend) as
-secrets in each platform's dashboard; never commit them.
+secrets in each platform's dashboard; never commit them. **The two must match** — a mismatch
+surfaces as "invalid or missing API key" (401) on every scoring request.
+
+Accounts (`/officer` and `/advisor` both require sign-in): set `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` as Cloudflare Pages environment variables (safe to expose client-side —
+see `frontend/.env.example` for the full setup, including enabling Google sign-in).
 
 ## Project structure
 ```
