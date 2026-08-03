@@ -2,7 +2,11 @@
 // email via Resend, server-side. Resolves before the [[path]].ts catch-all proxy, so this never
 // reaches the Render backend. Needs RESEND_API_KEY set as a secret:
 //   npx wrangler pages secret put RESEND_API_KEY --project-name=credit-scoring-ml
-const TO_ADDRESS = 'preet.d@agilitytech.ai'
+//
+// TO_ADDRESS must match the email the Resend account was signed up with (zesus680@gmail.com) --
+// Resend's sandbox sender (onboarding@resend.dev, no verified domain) refuses any other
+// recipient. Switch this to a business address once a domain is verified in Resend.
+const TO_ADDRESS = 'zesus680@gmail.com'
 const FROM_ADDRESS = 'CreditScore <onboarding@resend.dev>'
 
 function json(status: number, body: unknown) {
