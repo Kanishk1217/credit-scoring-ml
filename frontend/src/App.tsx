@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import LiveDemo from './LiveDemo'
+import Logo from './Logo'
+import RequestAccessForm from './RequestAccessForm'
 
 /* thin scroll-progress line at the very top */
 function ScrollProgress() {
@@ -78,7 +80,7 @@ function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-4 md:px-10">
-        <span className="font-display text-base font-600 tracking-tight text-ink">creditscore</span>
+        <Logo />
         <nav className="hidden items-center gap-10 text-sm text-muted md:flex">
           <a href="#how" className="transition-colors hover:text-ink">how it works</a>
           <a href="#caps" className="transition-colors hover:text-ink">capabilities</a>
@@ -283,12 +285,7 @@ function CTA() {
         <h2 className="reveal mx-auto max-w-4xl font-display font-700 leading-[0.98] tracking-[-0.02em] text-ink" style={{ fontSize: 'clamp(2.5rem,7vw,6rem)' }}>
           Risk scoring you can <span className="italic font-500 text-accent">stand behind</span>.
         </h2>
-        <div className="reveal mt-12 flex flex-wrap justify-center gap-8">
-          <a href="#" className="group inline-flex items-center gap-2 border-b border-ink pb-1 font-display text-lg font-500 text-ink">
-            Request access <ArrowUpRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </a>
-          <a href="#" className="text-lg text-muted transition-colors hover:text-ink">Talk to us</a>
-        </div>
+        <RequestAccessForm />
       </div>
     </section>
   )

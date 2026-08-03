@@ -6,6 +6,7 @@ import AssessmentForm from './AssessmentForm'
 import ResultsView from './ResultsView'
 import { COPY } from './copy'
 import { useAuth } from '../auth/AuthContext'
+import Logo from '../Logo'
 
 function isValid(p: Profile): boolean {
   return p.monthly_income > 0 && p.age >= 18 && p.age <= 80
@@ -55,7 +56,7 @@ export default function SelfAssessmentPage() {
     <div className="min-h-screen bg-bg">
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-5">
-          <a href="/" className="font-display text-base font-600 tracking-tight text-ink">creditscore</a>
+          <Logo />
           {user && (
             <div className="flex items-center gap-3 text-sm text-ink/55">
               <span>{user.email}</span>
