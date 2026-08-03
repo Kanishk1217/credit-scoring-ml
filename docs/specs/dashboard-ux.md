@@ -241,7 +241,7 @@ Secondary always: `Copy result JSON`, `Export PDF`, `Rescore`.
 
 Required header (exact): `applicant_id,age,monthly_income,credit_limit,existing_debt,employment_years,num_existing_loans,pay_1,pay_2,pay_3,pay_4,pay_5,pay_6,pay_7,pay_8,pay_9,pay_10,pay_11,pay_12`
 
-`pay_1` = oldest (M-12), `pay_12` = newest (M-1), each an integer `<=0..9`. `applicant_id` is any string, unique. `gender`/`region` columns, if present, are dropped client-side before upload with a notice (`fairness-only fields removed before scoring`). Validation before send: header match, row count > 0 and ≤ 5,000, every numeric parses, `pay_*` in range. Bad rows collected into an error report, not silently skipped.
+`pay_1` = oldest (M-12), `pay_12` = newest (M-1), each an integer `<=0..9`. `applicant_id` is any string, unique. `gender`/`region` columns, if present, are dropped client-side before upload with a notice (`fairness-only fields removed before scoring`). Validation before send: header match, row count > 0 and ≤ 1,000, every numeric parses, `pay_*` in range. Bad rows collected into an error report, not silently skipped.
 
 ### Results table columns
 

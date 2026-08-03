@@ -19,6 +19,9 @@ COPY models/hybrid_xgb.joblib models/hybrid_config.json models/hybrid_fusion.npz
 COPY models_real/hybrid_xgb.joblib models_real/hybrid_config.json models_real/hybrid_fusion.npz ./models_real/
 COPY models_real_rich/hybrid_xgb.joblib models_real_rich/hybrid_config.json models_real_rich/hybrid_fusion.npz ./models_real_rich/
 
+RUN useradd --no-create-home --uid 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 # bind to the host's $PORT if provided (Render), else 8000 (local / fixed-port hosts)
 CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]

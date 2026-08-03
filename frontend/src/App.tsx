@@ -162,7 +162,7 @@ function Marquee() {
 }
 
 const STATS = [
-  { v: '0.89', l: 'model AUC on the hybrid' },
+  { v: '0.665', l: 'model AUC, real Home Credit data' },
   { v: '<100ms', l: 'per decision, single call' },
   { v: '1000', l: 'applicants scored per batch' },
 ]

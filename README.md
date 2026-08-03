@@ -15,13 +15,21 @@ step-by-step learning project that goes from classical machine learning to deep 
 a hardened, deployable API. The headline model is a **hybrid** that fuses XGBoost (static features) with
 an LSTM (payment-history sequence).
 
+**The production model — the one actually running behind the live API and the website — is
+`models_real`, trained on 167,115 real Home Credit applicants (7 self-reportable features).** It is
+served with `CREDIT_MODEL_DIR=models_real`. A separate hybrid trained on a synthetic book (`models/`)
+still exists in the repo as the original learning artifact and is what the test suite's default
+assumptions are built around, but it is not what the deployed site scores real people with.
+
 ## Highlights
 - **Full ML-to-DL journey** in 9 documented notebooks: EDA, Weight of Evidence, a logistic-regression
   scorecard, XGBoost / LightGBM / CatBoost with calibration, multi-table feature engineering, a neural
   net from scratch, an LSTM, and the fused hybrid.
-- **Hybrid model** (XGBoost + LSTM) reaches **0.892 AUC** on synthetic data, is **isotonic-calibrated**
-  (predicted PD tracks the true default rate, not ~2x it), and uses **cost-based decision thresholds**
-  instead of an arbitrary 0.5 cutoff.
+- **Hybrid model** (XGBoost + LSTM), same architecture for every data source: **0.6654 AUC** on the
+  real Home Credit data it's actually served on (0.892 on the synthetic learning dataset — see the
+  table below for why the honest real number is lower). Both are **isotonic-calibrated** (predicted PD
+  tracks the true default rate) and use a **recall-target decision threshold** — see "Decision
+  threshold" below for what that means and the real trade-off numbers.
 - **No protected attributes.** Sex/marriage/education are never scored — enforced at the API schema
   level (`extra="forbid"`), not just by convention.
 - **Explainability, pricing, and advice**: every decision ships with ranked "why" factors (XGBoost
@@ -29,10 +37,10 @@ an LSTM (payment-history sequence).
   what-if advice ("6 months on-time payments would drop your risk from X% to Y%").
 - **Production API** (FastAPI): API-key auth, rate limiting, input validation, security headers, audit
   logging, single and batch scoring, a test suite, Docker, and CI.
-- **Tested cross-population generalization, honestly**: the real Home Credit model scores AUC
-  0.51 (no signal) on a different real lending population (US LendingClub) — and a generic
-  onboarding script (`src/train_new_market.py`) that trains a population-specific model instead
-  recovers real signal (AUC 0.66) on the exact same people. See "Multi-market models" below.
+- **Tested cross-population generalization, honestly**: `models_real` scores AUC 0.51 (no signal) on
+  a different real lending population (US LendingClub) — and a generic onboarding script
+  (`src/train_new_market.py`) that trains a population-specific model instead recovers real signal
+  (AUC 0.66) on the exact same people. See "Multi-market models" below.
 
 ## Model performance (held-out test)
 | Model | Test AUC | Notes |
@@ -41,28 +49,57 @@ an LSTM (payment-history sequence).
 | XGBoost (Give Me Some Credit) | 0.869 | learning notebook |
 | LSTM on payment sequences (Taiwan, 6mo) | 0.737 | learning notebook |
 | Hybrid: XGBoost + LSTM (Taiwan, 6mo, uncalibrated) | 0.775 | superseded — see below |
-| **Hybrid: XGBoost + LSTM (synthetic, 12mo, calibrated) — SERVED MODEL** | **0.892** | see below |
+| Hybrid: XGBoost + LSTM (synthetic, 12mo, calibrated) | 0.892 | learning artifact, still in the test suite, not what's deployed |
+| **Hybrid: XGBoost + LSTM (real Home Credit, 12mo, calibrated) — SERVED MODEL** | **0.6654** | what the live site actually scores you with |
 
-**Why the served model changed.** The Taiwan-trained hybrid (0.775 AUC) scored SEX/EDUCATION/
-MARRIAGE as inputs (illegal for real lending in most jurisdictions) and shipped **without
-calibration** — its mean predicted PD was ~43% against an actual default rate of ~22%, roughly
-double the truth, which made the fixed 0.2/0.5 decision thresholds nonsensical (91% of applicants
-would have been flagged for review or decline). The served model now trains on a larger synthetic
-book (150k rows, 12 months of history, no protected attributes) and is isotonic-calibrated with
-cost-based thresholds fit on held-out data. Full before/after numbers, the reliability table, and
-the fairness audit are in the model card.
+**Why the real number is lower, and that's the honest one to trust.** The synthetic book was
+generated so its two branches (financial snapshot, payment trajectory) carry clean, complementary
+signal — real applicants are messier. 0.6654 AUC on 167,115 real Home Credit applicants (8.1% actual
+default rate) is the number that reflects what this model can really tell about a real person, and
+it's the number quoted everywhere else in this README. Full before/after history of the original
+Taiwan→synthetic retraining (protected attributes, missing calibration) is in the model card.
 
-See [docs/model_card.md](docs/model_card.md) for intended use, limitations, and fairness notes.
+See [docs/model_card.md](docs/model_card.md) (synthetic learning model) and
+[reports/real_data_model_report.md](reports/real_data_model_report.md) (`models_real`, the served
+model) for intended use, limitations, and fairness notes.
+
+## Decision threshold — what it does, and the real numbers behind it
+
+The model outputs one number per applicant: a calibrated probability of default (PD). That number
+alone isn't a decision — the **threshold** is the cutoff that turns it into approve / review /
+decline. Moving the threshold doesn't change the model or require retraining anything; it only moves
+where the line falls on the same calibrated score, which changes who ends up on which side of it.
+
+`models_real` ships a **recall-target threshold**, `decline_threshold = 0.075`, chosen to catch
+**65% of real defaulters** — deliberately, not as a leftover default. That choice was measured
+against the alternative (a much higher cutoff, e.g. 0.15) on the same held-out test set:
+
+| | `decline_threshold = 0.075` (shipped) | `decline_threshold = 0.15` (considered, not shipped) |
+|---|---|---|
+| Defaulters caught (recall) | 62.5% | 14.6% |
+| Of declines, actually defaulters (precision) | 12.6% | 19.2% |
+| Overall accuracy | 61.8% | 88.1% |
+| Of all applicants declined | 40.2% | 6.2% |
+| Good (would-repay) applicants wrongly declined | 38.2% | 5.4% |
+| Good applicants wrongly declined per real defaulter caught | 6.9 | 4.2 |
+
+The lower threshold catches roughly 2 in 3 defaulters at the cost of declining 4 in 10 applicants
+overall, most of whom would have repaid. The higher threshold declines far fewer people overall and
+wrongly rejects far fewer good applicants, but only catches about 1 in 7 defaulters. There is no
+setting that avoids this trade-off — only a choice of which cost to accept. The 0.075 threshold is
+shipped because catching defaulters was weighted higher than minimizing false declines; this is a
+recorded business choice, not a hidden default, and it's re-derivable any time by rerunning
+`src/train_home_credit_models.py --variant real` against the current calibrated model.
 
 ## Multi-market models: real data, not just synthetic
 
-Beyond the synthetic served model above, this project also trains and validates models on real,
+Beyond the synthetic learning model, this project trains and validates models on real,
 independently-sourced lending data — and treats "does this generalize to a different real
 population" as a question to actually test, not assume.
 
 | Model | Data | Test AUC | 5-fold CV AUC | Notes |
 |---|---|---|---|---|
-| `models_real` | Real Home Credit, 7 self-reportable features | 0.665 | 0.6650 ± 0.0030 | intended for public API / `/advisor` |
+| **`models_real`** | Real Home Credit, 7 self-reportable features | **0.665** | 0.6650 ± 0.0030 | **served — production model behind the API and `/advisor`** |
 | `models_real_rich` | Real Home Credit, 38 features (+ bureau history) | 0.756 | 0.7554 ± 0.0047 | not yet servable — needs a bureau-data lookup |
 | `models_lendingclub` | Real historical US LendingClub loans, 34 features | 0.661 | 0.6577 ± 0.0060 | trained via the generic onboarding script below |
 
@@ -109,13 +146,15 @@ content fingerprint (sha256 of the actual trained artifacts, not the config) and
 # 1. environment (uses uv: https://docs.astral.sh/uv/)
 uv sync
 
-# 2. (optional) retrain the model from scratch — one script, torch used for training only
-uv run python src/train_home_credit_models.py --variant synthetic
-#   -> models/hybrid_xgb.joblib, hybrid_fusion.npz (torch-free weights), hybrid_config.json
-#   --variant real | real_rich trains the real-Home-Credit variants the same way
+# 2. (optional) retrain a model from scratch — one script, torch used for training only
+uv run python src/train_home_credit_models.py --variant real
+#   -> models_real/hybrid_xgb.joblib, hybrid_fusion.npz (torch-free weights), hybrid_config.json
+#   --variant synthetic | real_rich trains the other variants the same way
 
 # 3. configure and run the API
 cp .env.example .env        # then set CREDIT_API_KEYS to your own key(s)
+#   CREDIT_MODEL_DIR defaults to "models" (synthetic) locally so the test suite's assumptions hold;
+#   set CREDIT_MODEL_DIR=models_real in .env to run the same model production actually serves
 uv run uvicorn api.app:app --port 8077
 #   interactive docs: http://localhost:8077/docs  (send header X-API-Key: <your key>)
 ```
@@ -127,8 +166,10 @@ curl -X POST http://localhost:8077/predict \
   -d '{"age":30,"monthly_income":45000,"credit_limit":250000,"existing_debt":90000,
        "employment_years":3.5,"num_existing_loans":2,
        "pay_status":[0,0,0,0,0,0,0,0,-1,1,2,2]}'
-# -> {"probability_of_default":0.5188,"recommendation":"decline", "why":[...],
-#     "pricing":{"max_loan_amount":0,...}, "advice":[...], "model_version":"1.0.0"}
+# with CREDIT_MODEL_DIR=models_real (the served model), this returns:
+# -> {"probability_of_default":0.2303,"recommendation":"decline","approve_threshold":0.037,
+#     "decline_threshold":0.075,"why":[...], "pricing":{"max_loan_amount":0,...},
+#     "advice":[...], "model_version":"1.0.0"}
 ```
 `pay_status` is **12 months**, oldest to newest; `<= 0` means paid on time, `1..9` means that many
 months late. No sex/marriage/education fields exist in the schema (`extra="forbid"` rejects them).
@@ -178,32 +219,38 @@ data/         datasets (git-ignored)
 ```
 
 ## Datasets
-**Served (synthetic) model:** a synthetic lender book (`src/synth_data.py`) — 150k borrowers, 12
-months of payment history, financial features only (no protected attributes). **Real models:**
-Home Credit Default Risk (Kaggle, `models_real`/`models_real_rich`) and historical LendingClub
-loans (`models_lendingclub`) — see "Multi-market models" above. **Learning notebooks (01-09):**
+**Served (production) model:** real Home Credit Default Risk data (Kaggle) — 167,115 real applicants
+across `application_train` + `bureau` + `installments_payments`, 7 self-reportable features
+(`models_real`). **Also trained, not served:** `models_real_rich` (38 features + bureau history) and
+`models_lendingclub` (historical US LendingClub loans) — see "Multi-market models" above. **Synthetic
+learning model** (`models/`, not served): a generated lender book (`src/synth_data.py`) — 150k
+borrowers, 12 months of payment history, financial features only. **Learning notebooks (01-09):**
 German Credit (UCI), Give Me Some Credit (Kaggle), Home Credit Default Risk (Kaggle), Taiwan Credit
 Card (UCI). All public. Data files are not committed.
 
 ## Limitations
-This is a learning and demonstration project. The served model is trained on **synthetic** data
-(the schema mirrors a real lender's, so swapping in real data is a loader change, not a redesign) —
-it is **not** validated for real lending decisions. Calibration, cost-based thresholds, and a
-fairness audit are already implemented (see the model card), but before any real use the model
-would need retraining on the lender's own real population and ongoing drift monitoring.
+The served model (`models_real`) is trained on real historical Home Credit applications, not live
+production outcomes from this specific lender — calibration, the recall-target threshold, and a
+fairness audit are already implemented (see `reports/real_data_model_report.md`), but before any real
+lending use it would need validation against the actual lender's own population and ongoing drift
+monitoring. It has also been directly tested against an independent real population (US
+LendingClub) and found not to generalize (AUC 0.51) — see "Multi-market models" above; a new market
+needs its own model, not a reused one. The synthetic hybrid (`models/`) is a learning artifact only,
+never intended for real decisions.
 
 ## Model verification
-Beyond the metrics above, the model has been checked for:
-- **CV stability**: 5-fold CV, AUC 0.884-0.891 (std 0.0024) — not a lucky split (`src/cross_validate.py`).
-- **Prevalence sensitivity**: AUC/recall are stable across natural vs artificially-balanced
-  evaluation sets; precision and calibration are not (expected — calibration is population-specific).
+Beyond the metrics above, `models_real` has been checked for:
+- **CV stability**: 5-fold CV, AUC 0.662-0.6703 (mean 0.665, std 0.003) — not a lucky split.
+- **Fairness audit**: gender demographic-parity gap 0.0617 (equalized-odds gap 0.0569), region
+  demographic-parity gap 0.0481 (equalized-odds gap 0.0297) — `region`/`gender` are illustrative
+  proxies only, never used as scoring inputs.
 - **Monotonicity**: risk moves in the economically sensible direction for every static feature
   (more debt → more risk, more income → less risk, etc.), with no reversals.
 - **Drift monitoring**: `src/drift_monitor.py` computes the Population Stability Index against a
-  saved reference distribution and flags moderate/major population shift (e.g. would catch a real
-  deployment population drifting away from the one the model was calibrated on).
+  saved reference distribution and flags moderate/major population shift.
 
-Full numbers: `reports/model_report_card.md`.
+Full numbers: `reports/real_data_model_report.md` (`models_real`) and `reports/model_report_card.md`
+(the synthetic learning model).
 
 ## Roadmap
 - ~~Loan-officer dashboard (single applicant + CSV batch)~~ — done, `/officer`, Supabase-gated
@@ -211,6 +258,8 @@ Full numbers: `reports/model_report_card.md`.
 - ~~Prove/disprove cross-population generalization~~ — done: `models_real` fails on a different
   real population (AUC 0.51); `models_lendingclub` proves a population-specific model recovers
   real signal (AUC 0.66) on the same data
+- ~~Serve a real-data model, not just the synthetic one~~ — done: production runs
+  `CREDIT_MODEL_DIR=models_real`
 - Wire `models_real_rich` and `models_lendingclub` into live serving (needs a new request schema
   and feature-row builder per model, not just a config flip — see `docs/model_creation_summary.md`)
 - Apply the validated per-group threshold fairness mitigation to production scoring (currently

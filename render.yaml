@@ -12,6 +12,8 @@ services:
         value: "false"          # hide interactive docs in production
       - key: CREDIT_RATE_LIMIT
         value: 60/minute
+      - key: CREDIT_MODEL_DIR
+        value: models_real      # serve the real Home Credit model, not the synthetic default
       - key: CREDIT_API_KEYS
         sync: false             # SECRET — set in the Render dashboard, never in the repo
       - key: CREDIT_ALLOWED_ORIGINS

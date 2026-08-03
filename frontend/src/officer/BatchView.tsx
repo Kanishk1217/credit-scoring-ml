@@ -183,8 +183,8 @@ export default function BatchView() {
         if (rowErrors.length && parsed.length === 0) {
           setErrors(rowErrors); setState('error'); return
         }
-        if (parsed.length > 5000) {
-          setErrors([{ row: 0, reason: 'more than 5,000 rows — split the file' }]); setState('error'); return
+        if (parsed.length > 1000) {
+          setErrors([{ row: 0, reason: 'more than 1,000 rows — split the file' }]); setState('error'); return
         }
         setErrors(rowErrors)
         await scoreRows(parsed)

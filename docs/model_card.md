@@ -1,4 +1,9 @@
-# Model Card — Hybrid Credit Scoring Model
+# Model Card — Hybrid Credit Scoring Model (synthetic learning model)
+
+> **This card describes the synthetic-data hybrid (`models/`), the original learning artifact.**
+> **It is not the model served in production.** The live API and website serve `models_real`
+> (real Home Credit data) — see [reports/real_data_model_report.md](../reports/real_data_model_report.md)
+> for that model's card, and the main [README](../README.md) for which model is actually deployed.
 
 ## Overview
 A hybrid model that estimates an applicant's **probability of default (PD)** by combining two views

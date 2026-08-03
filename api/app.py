@@ -97,6 +97,14 @@ async def lifespan(app: FastAPI):
 
 
 def rate_key(request: Request) -> str:
+    # The frontend proxy injects one shared API key for every browser visitor (so the browser
+    # never holds a real key) -- keying on X-API-Key alone would put every site visitor in the
+    # same rate-limit bucket. Cloudflare sets CF-Connecting-IP on requests it proxies, so prefer
+    # that (per-visitor) when present; direct API callers with their own key still get a per-key
+    # bucket.
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip
     return request.headers.get("X-API-Key") or get_remote_address(request)
 
 
@@ -376,7 +384,7 @@ class OfficerBatchSummary(BaseModel):
 
 
 class OfficerBatchRequest(BaseModel):
-    applicants: dict[str, OfficerApplicantInput] = Field(..., min_length=1, max_length=5000)
+    applicants: dict[str, OfficerApplicantInput] = Field(..., min_length=1, max_length=1000)
 
 
 class OfficerBatchResponse(BaseModel):
